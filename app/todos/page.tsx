@@ -899,70 +899,70 @@ export default function TodosPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center transition-colors duration-200">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading todos...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading todos...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
       {/* Top Navigation Bar */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
+      <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-6 py-6">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Todo App</h1>
-              <p className="text-gray-600 mt-1">Welcome, {username || 'abc'}</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-200">Todo App</h1>
+              <p className="text-gray-600 dark:text-slate-400 mt-1 transition-colors duration-200">Welcome, {username || 'abc'}</p>
             </div>
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setShowTagModal(true)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 bg-gray-600 dark:bg-slate-700 text-white rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-slate-600 transition-colors duration-200"
               >
                 + Manage Tags
               </button>
-              <button className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors">
+              <button className="px-4 py-2 bg-gray-600 dark:bg-slate-700 text-white rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-slate-600 transition-colors duration-200">
                 Data
               </button>
               <button 
                 onClick={() => router.push('/calendar')}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                className="px-4 py-2 bg-purple-600 dark:bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-700 dark:hover:bg-purple-600 transition-colors duration-200"
               >
                 📅 Calendar
               </button>
               <button 
                 onClick={() => setShowTemplateModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors duration-200"
               >
                 📋 Templates
               </button>
               <button 
                 onClick={() => setShowExportModal(true)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                className="px-4 py-2 bg-indigo-600 dark:bg-indigo-700 text-white rounded-lg font-medium hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors duration-200"
               >
                 📤 Export
               </button>
               <button 
                 onClick={() => setShowImportModal(true)}
-                className="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors"
+                className="px-4 py-2 bg-teal-600 dark:bg-teal-700 text-white rounded-lg font-medium hover:bg-teal-700 dark:hover:bg-teal-600 transition-colors duration-200"
               >
                 📥 Import
               </button>
               <button 
                 onClick={() => startPolling()}
                 disabled={permission === 'granted'}
-                className="px-3 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors disabled:bg-green-500"
+                className="px-3 py-2 bg-orange-500 dark:bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-600 dark:hover:bg-orange-500 transition-colors duration-200 disabled:bg-green-500 dark:disabled:bg-green-600"
                 title={permission === 'granted' ? 'Notifications enabled' : 'Enable notifications'}
               >
                 🔔
               </button>
               <button 
                 onClick={handleLogout}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 bg-gray-600 dark:bg-slate-700 text-white rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-slate-600 transition-colors duration-200"
               >
                 Logout
               </button>
@@ -973,7 +973,7 @@ export default function TodosPage() {
 
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 rounded-xl p-4 transition-colors duration-200">
             <div className="flex items-start justify-between">
               <p>{error}</p>
               <button 
@@ -987,7 +987,7 @@ export default function TodosPage() {
         )}
 
         {/* Create Todo Form */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 transition-colors duration-200">
           <form onSubmit={createTodo} className="space-y-4">
             {/* Main Input Row */}
             <div className="flex gap-3 items-center">
@@ -996,7 +996,7 @@ export default function TodosPage() {
                 value={newTodoTitle}
                 onChange={(e) => setNewTodoTitle(e.target.value)}
                 placeholder="Add a new todo..."
-                className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 transition-colors duration-200"
                 maxLength={500}
               />
               <select

@@ -126,26 +126,26 @@ export default function CalendarPage() {
 
   if (loading && !calendarMonth) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-gray-600">Loading calendar...</div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center transition-colors duration-200">
+        <div className="text-gray-600 dark:text-slate-400">Loading calendar...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 transition-colors duration-200">
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">📅 Calendar View</h1>
-              <p className="text-sm text-gray-600">Welcome, {username || 'User'}</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors duration-200">📅 Calendar View</h1>
+              <p className="text-sm text-gray-600 dark:text-slate-400 transition-colors duration-200">Welcome, {username || 'User'}</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push('/todos')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
+                className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg text-sm hover:bg-blue-500 dark:hover:bg-blue-600 transition-colors duration-200"
               >
                 📝 Todo List
               </button>
