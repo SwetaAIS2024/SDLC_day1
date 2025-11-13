@@ -1,509 +1,308 @@
 # PRP-02: Priority System
 
-**Feature**: Three-Level Priority Classification for Todos  
-**Priority**: P0 (Core Feature)  
-**Status**: Specification  
-**Last Updated**: November 13, 2025  
-**Depends On**: PRP-01 (Todo CRUD Operations)
+## Feature Overview
 
----
+The Priority System provides users with a three-level prioritization mechanism (High, Medium, Low) for organizing and managing todos by urgency and importance. This feature enhances task management through:
 
-## 📋 Feature Overview
+- **Visual Priority Indicators**: Color-coded badges that make priority levels immediately recognizable
+- **Intelligent Sorting**: Automatic ordering of todos by priority level within completion status groups
+- **Flexible Filtering**: Ability to focus on tasks of specific priority levels
+- **Priority Inheritance**: Recurring todos and templates preserve priority settings
 
-The Priority System enables users to categorize their todos into three distinct priority levels: **High**, **Medium**, and **Low**. Each priority level is visually distinguished by color-coded badges (red for high, yellow for medium, blue for low), allowing users to quickly identify urgent tasks at a glance. The system automatically sorts todos by priority, ensuring high-priority items appear first, followed by medium and low priority tasks.
+The priority system integrates seamlessly with all todo operations, ensuring priority is maintained across CRUD operations, recurrence cycles, and template usage.
 
-Users can filter the todo list to show only specific priority levels, helping them focus on what matters most. Priority can be set when creating a new todo or updated at any time through the edit interface.
+## User Stories
 
-### Key Capabilities
-- **Three Priority Levels**: High, Medium, Low (with default being Medium)
-- **Visual Indicators**: Color-coded badges for instant recognition
-- **Automatic Sorting**: High → Medium → Low → No priority set
-- **Priority Filtering**: Show only todos of selected priority levels
-- **Inline Priority Selection**: Dropdown selector in create/edit forms
-- **Priority Modification**: Change priority at any time without affecting other todo properties
+### Primary User Personas
 
-### Business Value
-- Helps users focus on urgent tasks first
-- Reduces decision fatigue by pre-sorting tasks
-- Improves task completion rates by 25-30% (industry benchmark)
-- Enables better time management and productivity
+**1. Busy Professional (Sarah)**
+> "As a busy professional managing multiple projects, I need to visually identify my most urgent tasks so I can focus my limited time on high-priority items without getting distracted by less important tasks."
 
----
+**2. Student (Alex)**
+> "As a student juggling coursework and deadlines, I need to categorize my assignments by importance so I can tackle critical assignments first while keeping track of lower-priority study tasks."
 
-## 👥 User Stories
+**3. Team Lead (Marcus)**
+> "As a team lead coordinating tasks, I need to set priority levels on delegated todos so my team understands what requires immediate attention versus what can be scheduled for later."
 
-### Primary User Persona: Busy Professional Managing Multiple Projects
+### User Needs
 
-**As a** project manager juggling multiple deadlines  
-**I want to** mark certain todos as high priority  
-**So that** I can quickly see which tasks need immediate attention
+- Quick visual identification of task urgency
+- Ability to change priority as circumstances evolve
+- Automatic organization by priority without manual sorting
+- Filter view to focus on specific priority levels
+- Default priority assignment for new tasks
 
-**As a** productivity-focused user  
-**I want to** see my high-priority tasks at the top of my list  
-**So that** I don't overlook critical work while scrolling through todos
+## User Flow
 
-**As a** detail-oriented individual  
-**I want to** filter my todos by priority level  
-**So that** I can focus exclusively on urgent tasks during peak productivity hours
-
-**As a** user who plans ahead  
-**I want to** assign priorities when creating new todos  
-**So that** I can immediately categorize tasks by importance
-
-**As a** user whose priorities change  
-**I want to** easily update a todo's priority  
-**So that** my list reflects my current needs without recreating tasks
-
-**As a** visual thinker  
-**I want to** see color-coded priority indicators  
-**So that** I can instantly recognize task urgency without reading labels
-
----
-
-## 🔄 User Flow
-
-### Flow 1: Creating a Todo with Priority
+### Primary Flow: Creating Todo with Priority
 
 1. User clicks "Add Todo" button
-2. Todo creation form appears with:
-   - Title input field (required)
-   - Due date picker (optional)
-   - **Priority dropdown** (defaults to "Medium")
-3. User selects priority from dropdown: High / Medium / Low
-4. User enters title and optionally sets due date
-5. User clicks "Add" or presses Enter
-6. **Optimistic Update**: Todo appears in list with colored priority badge
-7. API request sent to server with priority field
-8. On success: Todo confirmed with proper sorting
-9. On failure: Todo removed, error shown
+2. User enters todo title in input field
+3. User clicks **Priority dropdown** (defaults to "Medium")
+4. User selects desired priority: High / Medium / Low
+5. User completes other fields (due date, tags, etc.)
+6. User clicks "Add Todo" button
+7. **System creates todo with selected priority**
+8. **System displays todo with color-coded priority badge**
+9. **System automatically sorts todo list** (High → Medium → Low within incomplete/complete groups)
 
-### Flow 2: Viewing Todos Sorted by Priority
+### Secondary Flow: Changing Priority of Existing Todo
 
-1. User lands on main page with existing todos
-2. App fetches todos from `/api/todos`
-3. Todos automatically sorted by priority:
-   - **High priority** (red badges) appear first
-   - **Medium priority** (yellow badges) appear next
-   - **Low priority** (blue badges) appear last
-   - Todos without priority appear at the end
-4. Within each priority level, todos sorted by creation date (newest first)
+1. User locates todo in list
+2. User clicks **Priority dropdown** on todo card
+3. User selects new priority level
+4. **System updates todo priority immediately**
+5. **System re-sorts todo list** to reflect new priority
+6. **System shows visual feedback** (badge color changes)
 
-### Flow 3: Changing Todo Priority
+### Tertiary Flow: Filtering by Priority
 
-1. User clicks "Edit" icon on a todo
-2. Todo enters edit mode with inline editing
-3. Priority dropdown shows current priority value
-4. User selects new priority from dropdown
-5. User clicks "Save" or presses Enter
-6. **Optimistic Update**: 
-   - Badge color changes immediately
-   - Todo repositions in list according to new priority
-7. API PUT request sent to `/api/todos/[id]`
-8. On success: Position and priority confirmed
-9. On failure: Todo reverts to original priority and position
+1. User clicks **"Filter by Priority"** dropdown in toolbar
+2. System displays options: All / High / Medium / Low
+3. User selects desired priority level
+4. **System filters todo list** to show only matching priorities
+5. System displays count of filtered todos
+6. User can clear filter by selecting "All"
 
-### Flow 4: Filtering Todos by Priority
+### Edge Flow: Priority in Recurring Todos
 
-1. User sees priority filter buttons above todo list:
-   - "All" (selected by default)
-   - "High" with red indicator
-   - "Medium" with yellow indicator
-   - "Low" with blue indicator
-2. User clicks "High" filter button
-3. **Instant client-side filtering**: Only high-priority todos shown
-4. Count badge shows number of filtered todos (e.g., "High (5)")
-5. User clicks "All" to clear filter and see all todos again
-6. Filter state persists during session (not across page refreshes)
+1. User completes a High priority recurring todo
+2. **System creates next instance with same High priority**
+3. New instance appears at top of list (High priority sorting)
+4. User can modify priority of new instance independently
 
-### Flow 5: Bulk Priority Update (Future Enhancement Preview)
+## Technical Requirements
 
-1. User selects multiple todos via checkboxes
-2. Bulk actions toolbar appears with "Set Priority" dropdown
-3. User selects new priority from dropdown
-4. All selected todos update priority simultaneously
-5. Todos reposition according to new priorities
+### Database Schema
 
-**Note**: Flow 5 is out of scope for initial implementation but documented for future reference.
-
----
-
-## 🛠️ Technical Requirements
-
-### Database Schema Changes
-
-**Table**: `todos` (modifications to existing table from PRP-01)
+The `todos` table already includes the `priority` column (added in Todo CRUD feature):
 
 ```sql
--- Add priority column to existing todos table
-ALTER TABLE todos ADD COLUMN priority TEXT CHECK(priority IN ('high', 'medium', 'low')) DEFAULT 'medium';
+CREATE TABLE todos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  priority TEXT DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
+  is_completed INTEGER DEFAULT 0,
+  due_date TEXT,
+  recurrence_pattern TEXT CHECK(recurrence_pattern IN ('daily', 'weekly', 'monthly', 'yearly')),
+  reminder_minutes INTEGER,
+  last_notification_sent TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
--- Create index for efficient priority-based queries
-CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
-```
-
-**Migration Strategy**:
-```typescript
-// In lib/db.ts initialization
-try {
-  db.exec(`ALTER TABLE todos ADD COLUMN priority TEXT CHECK(priority IN ('high', 'medium', 'low')) DEFAULT 'medium'`);
-} catch (error) {
-  // Column already exists, ignore error
-}
-
-db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority)`);
+CREATE INDEX idx_todos_priority ON todos(priority);
+CREATE INDEX idx_todos_user_priority ON todos(user_id, priority, is_completed);
 ```
 
 ### TypeScript Types
 
-**File**: `lib/db.ts`
+Add to `lib/db.ts`:
 
 ```typescript
-// Priority enum
 export type Priority = 'high' | 'medium' | 'low';
 
-// Updated Todo interface
 export interface Todo {
   id: number;
   user_id: number;
   title: string;
-  completed: boolean;
-  priority: Priority;  // NEW: Required field with default
+  description: string | null;
+  priority: Priority; // Enhanced from nullable to required with default
+  is_completed: number;
   due_date: string | null;
+  recurrence_pattern: RecurrencePattern | null;
+  reminder_minutes: number | null;
+  last_notification_sent: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// Updated CreateTodoInput
-export interface CreateTodoInput {
-  title: string;
-  priority?: Priority;  // NEW: Optional, defaults to 'medium'
-  due_date?: string | null;
-}
-
-// Updated UpdateTodoInput
-export interface UpdateTodoInput {
-  title?: string;
-  completed?: boolean;
-  priority?: Priority;  // NEW: Allow priority updates
-  due_date?: string | null;
-}
-
-// Priority display configuration
+// Priority configuration
 export const PRIORITY_CONFIG = {
   high: {
     label: 'High',
-    color: 'red',
-    bgColor: 'bg-red-100',
-    textColor: 'text-red-800',
-    borderColor: 'border-red-300',
-    sortOrder: 0,
+    color: 'bg-red-100 text-red-800 border-red-300',
+    sortOrder: 1
   },
   medium: {
     label: 'Medium',
-    color: 'yellow',
-    bgColor: 'bg-yellow-100',
-    textColor: 'text-yellow-800',
-    borderColor: 'border-yellow-300',
-    sortOrder: 1,
+    color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    sortOrder: 2
   },
   low: {
     label: 'Low',
-    color: 'blue',
-    bgColor: 'bg-blue-100',
-    textColor: 'text-blue-800',
-    borderColor: 'border-blue-300',
-    sortOrder: 2,
-  },
+    color: 'bg-green-100 text-green-800 border-green-300',
+    sortOrder: 3
+  }
 } as const;
 ```
 
-### Database Operations Updates
+### API Endpoints
 
-**File**: `lib/db.ts`
+#### 1. Create Todo with Priority
 
-```typescript
-export const todoDB = {
-  // Updated create method
-  create(userId: number, input: CreateTodoInput): Todo {
-    const stmt = db.prepare(`
-      INSERT INTO todos (user_id, title, priority, due_date, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    
-    const now = getSingaporeNow().toISOString();
-    const result = stmt.run(
-      userId,
-      input.title.trim(),
-      input.priority || 'medium',  // Default to medium
-      input.due_date || null,
-      now,
-      now
-    );
-    
-    return this.getById(userId, result.lastInsertRowid as number)!;
-  },
-
-  // Updated getAll method with priority sorting
-  getAll(userId: number): Todo[] {
-    const stmt = db.prepare(`
-      SELECT * FROM todos 
-      WHERE user_id = ? 
-      ORDER BY 
-        CASE priority
-          WHEN 'high' THEN 0
-          WHEN 'medium' THEN 1
-          WHEN 'low' THEN 2
-          ELSE 3
-        END,
-        created_at DESC
-    `);
-    return stmt.all(userId) as Todo[];
-  },
-
-  // Filter by priority
-  getByPriority(userId: number, priority: Priority): Todo[] {
-    const stmt = db.prepare(`
-      SELECT * FROM todos 
-      WHERE user_id = ? AND priority = ?
-      ORDER BY created_at DESC
-    `);
-    return stmt.all(userId, priority) as Todo[];
-  },
-
-  // Get count by priority (for filter badges)
-  getCountByPriority(userId: number): Record<Priority, number> {
-    const stmt = db.prepare(`
-      SELECT priority, COUNT(*) as count
-      FROM todos
-      WHERE user_id = ? AND completed = 0
-      GROUP BY priority
-    `);
-    
-    const results = stmt.all(userId) as { priority: Priority; count: number }[];
-    
-    return {
-      high: results.find(r => r.priority === 'high')?.count || 0,
-      medium: results.find(r => r.priority === 'medium')?.count || 0,
-      low: results.find(r => r.priority === 'low')?.count || 0,
-    };
-  },
-
-  // Updated update method (includes priority field handling)
-  update(userId: number, id: number, input: UpdateTodoInput): Todo | undefined {
-    const todo = this.getById(userId, id);
-    if (!todo) return undefined;
-
-    const updates: string[] = [];
-    const values: any[] = [];
-
-    if (input.title !== undefined) {
-      updates.push('title = ?');
-      values.push(input.title.trim());
-    }
-    if (input.completed !== undefined) {
-      updates.push('completed = ?');
-      values.push(input.completed ? 1 : 0);
-    }
-    if (input.priority !== undefined) {
-      updates.push('priority = ?');
-      values.push(input.priority);
-    }
-    if (input.due_date !== undefined) {
-      updates.push('due_date = ?');
-      values.push(input.due_date);
-    }
-
-    if (updates.length === 0) return todo;
-
-    updates.push('updated_at = ?');
-    values.push(getSingaporeNow().toISOString());
-    values.push(id, userId);
-
-    const stmt = db.prepare(`
-      UPDATE todos 
-      SET ${updates.join(', ')}
-      WHERE id = ? AND user_id = ?
-    `);
-    stmt.run(...values);
-
-    return this.getById(userId, id);
-  },
-
-  // Existing methods (getById, delete) remain unchanged
-};
-```
-
-### API Endpoints Updates
-
-#### POST `/api/todos` - Create Todo (Updated)
+**Endpoint**: `POST /api/todos`
 
 **Request Body**:
-```typescript
+```json
 {
-  title: string;           // Required, 1-500 characters
-  priority?: 'high' | 'medium' | 'low';  // NEW: Optional, defaults to 'medium'
-  due_date?: string;       // Optional, ISO 8601 format
+  "title": "Complete project proposal",
+  "description": "Draft initial proposal for Q4 project",
+  "priority": "high",
+  "due_date": "2025-11-15T17:00:00+08:00"
 }
 ```
 
 **Response** (201 Created):
-```typescript
+```json
 {
-  id: number;
-  user_id: number;
-  title: string;
-  completed: false;
-  priority: 'high' | 'medium' | 'low';  // NEW: Always present
-  due_date: string | null;
-  created_at: string;
-  updated_at: string;
+  "id": 42,
+  "user_id": 1,
+  "title": "Complete project proposal",
+  "description": "Draft initial proposal for Q4 project",
+  "priority": "high",
+  "is_completed": 0,
+  "due_date": "2025-11-15T17:00:00+08:00",
+  "recurrence_pattern": null,
+  "reminder_minutes": null,
+  "last_notification_sent": null,
+  "created_at": "2025-11-12T14:30:00+08:00",
+  "updated_at": "2025-11-12T14:30:00+08:00"
 }
 ```
 
-**Implementation Changes** (`app/api/todos/route.ts`):
+#### 2. Update Todo Priority
 
-```typescript
-export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
+**Endpoint**: `PUT /api/todos/[id]`
 
-  try {
-    const body = await request.json();
-    const { title, priority, due_date } = body as CreateTodoInput;
-
-    // Existing title validation...
-
-    // NEW: Validate priority if provided
-    if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
-      return NextResponse.json({ 
-        error: 'Priority must be one of: high, medium, low' 
-      }, { status: 400 });
-    }
-
-    // Existing due_date validation...
-
-    const todo = todoDB.create(session.userId, { 
-      title: trimmedTitle, 
-      priority,  // NEW: Pass priority
-      due_date 
-    });
-    return NextResponse.json(todo, { status: 201 });
-
-  } catch (error) {
-    console.error('Error creating todo:', error);
-    return NextResponse.json({ error: 'Failed to create todo' }, { status: 500 });
-  }
-}
-```
-
-#### PUT `/api/todos/[id]` - Update Todo (Updated)
-
-**Request Body**:
-```typescript
+**Request Body** (partial update):
+```json
 {
-  title?: string;
-  completed?: boolean;
-  priority?: 'high' | 'medium' | 'low';  // NEW: Allow priority updates
-  due_date?: string | null;
+  "priority": "low"
 }
 ```
-
-**Implementation Changes** (`app/api/todos/[id]/route.ts`):
-
-```typescript
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-
-  try {
-    const { id } = await params;
-    const todoId = parseInt(id, 10);
-
-    if (isNaN(todoId)) {
-      return NextResponse.json({ error: 'Invalid todo ID' }, { status: 400 });
-    }
-
-    const body = await request.json();
-    const { title, completed, priority, due_date } = body;
-
-    // Existing validations...
-
-    // NEW: Validate priority if provided
-    if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
-      return NextResponse.json({ 
-        error: 'Priority must be one of: high, medium, low' 
-      }, { status: 400 });
-    }
-
-    const updatedTodo = todoDB.update(session.userId, todoId, {
-      title,
-      completed,
-      priority,  // NEW: Include priority
-      due_date,
-    });
-
-    if (!updatedTodo) {
-      return NextResponse.json({ error: 'Todo not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(updatedTodo, { status: 200 });
-  } catch (error) {
-    console.error('Error updating todo:', error);
-    return NextResponse.json({ error: 'Failed to update todo' }, { status: 500 });
-  }
-}
-```
-
-#### GET `/api/todos/priority-counts` - Get Priority Counts (NEW)
 
 **Response** (200 OK):
-```typescript
+```json
 {
-  high: number;
-  medium: number;
-  low: number;
+  "id": 42,
+  "priority": "low",
+  "updated_at": "2025-11-12T15:45:00+08:00"
 }
 ```
 
-**Implementation** (`app/api/todos/priority-counts/route.ts`):
+#### 3. Get Todos with Priority Sorting
+
+**Endpoint**: `GET /api/todos`
+
+**Query Parameters**:
+- `priority` (optional): Filter by specific priority level
+
+**Example**: `GET /api/todos?priority=high`
+
+**Response** (200 OK):
+```json
+{
+  "todos": [
+    {
+      "id": 42,
+      "title": "Critical deadline",
+      "priority": "high",
+      "is_completed": 0,
+      ...
+    },
+    {
+      "id": 38,
+      "title": "Review code",
+      "priority": "high",
+      "is_completed": 0,
+      ...
+    }
+  ],
+  "count": 2
+}
+```
+
+**Default Sorting Logic** (implemented in client):
+```typescript
+// Sort by: completion status → priority → due date → created date
+todos.sort((a, b) => {
+  // Incomplete todos first
+  if (a.is_completed !== b.is_completed) {
+    return a.is_completed - b.is_completed;
+  }
+  
+  // Then by priority (high=1, medium=2, low=3)
+  const priorityOrder = { high: 1, medium: 2, low: 3 };
+  const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+  if (priorityDiff !== 0) return priorityDiff;
+  
+  // Then by due date (nearest first, nulls last)
+  if (a.due_date && b.due_date) {
+    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+  }
+  if (a.due_date) return -1;
+  if (b.due_date) return 1;
+  
+  // Finally by created date (newest first)
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+});
+```
+
+### Database Operations
+
+Add to `lib/db.ts` todoDB object:
 
 ```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { todoDB } from '@/lib/db';
-
-export async function GET(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+export const todoDB = {
+  // ... existing methods ...
+  
+  getByPriority(userId: number, priority: Priority): Todo[] {
+    const stmt = db.prepare(`
+      SELECT * FROM todos 
+      WHERE user_id = ? AND priority = ?
+      ORDER BY is_completed ASC, 
+               CASE priority 
+                 WHEN 'high' THEN 1 
+                 WHEN 'medium' THEN 2 
+                 WHEN 'low' THEN 3 
+               END ASC,
+               due_date ASC NULLS LAST,
+               created_at DESC
+    `);
+    return stmt.all(userId, priority) as Todo[];
+  },
+  
+  updatePriority(id: number, userId: number, priority: Priority): boolean {
+    const stmt = db.prepare(`
+      UPDATE todos 
+      SET priority = ?, updated_at = datetime('now') 
+      WHERE id = ? AND user_id = ?
+    `);
+    const result = stmt.run(priority, id, userId);
+    return result.changes > 0;
+  },
+  
+  getPriorityStats(userId: number): { priority: Priority; count: number }[] {
+    const stmt = db.prepare(`
+      SELECT priority, COUNT(*) as count 
+      FROM todos 
+      WHERE user_id = ? AND is_completed = 0
+      GROUP BY priority
+    `);
+    return stmt.all(userId) as { priority: Priority; count: number }[];
   }
-
-  try {
-    const counts = todoDB.getCountByPriority(session.userId);
-    return NextResponse.json(counts, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching priority counts:', error);
-    return NextResponse.json({ error: 'Failed to fetch priority counts' }, { status: 500 });
-  }
-}
+};
 ```
 
----
-
-## 🎨 UI Components
+## UI Components
 
 ### Priority Badge Component
 
-**File**: `components/PriorityBadge.tsx`
-
-```typescript
+```tsx
 import { Priority, PRIORITY_CONFIG } from '@/lib/db';
 
 interface PriorityBadgeProps {
@@ -516,18 +315,18 @@ export function PriorityBadge({ priority, size = 'md' }: PriorityBadgeProps) {
   
   const sizeClasses = {
     sm: 'text-xs px-2 py-0.5',
-    md: 'text-sm px-2.5 py-0.5',
-    lg: 'text-base px-3 py-1',
+    md: 'text-sm px-2.5 py-1',
+    lg: 'text-base px-3 py-1.5'
   };
-
+  
   return (
-    <span
+    <span 
       className={`
-        inline-flex items-center rounded-full font-medium
-        ${config.bgColor} ${config.textColor} ${config.borderColor}
+        inline-flex items-center rounded-full border font-medium
+        ${config.color}
         ${sizeClasses[size]}
-        border
       `}
+      aria-label={`Priority: ${config.label}`}
     >
       {config.label}
     </span>
@@ -537,10 +336,8 @@ export function PriorityBadge({ priority, size = 'md' }: PriorityBadgeProps) {
 
 ### Priority Selector Component
 
-**File**: `components/PrioritySelector.tsx`
-
-```typescript
-import { Priority, PRIORITY_CONFIG } from '@/lib/db';
+```tsx
+import { Priority } from '@/lib/db';
 
 interface PrioritySelectorProps {
   value: Priority;
@@ -548,86 +345,88 @@ interface PrioritySelectorProps {
   disabled?: boolean;
 }
 
-export function PrioritySelector({ value, onChange, disabled = false }: PrioritySelectorProps) {
+export function PrioritySelector({ value, onChange, disabled }: PrioritySelectorProps) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as Priority)}
       disabled={disabled}
-      className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="
+        rounded-md border border-gray-300 px-3 py-2
+        text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500
+        disabled:bg-gray-100 disabled:cursor-not-allowed
+      "
+      aria-label="Select priority"
     >
-      {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
-        <option key={key} value={key}>
-          {config.label}
-        </option>
-      ))}
+      <option value="high">🔴 High Priority</option>
+      <option value="medium">🟡 Medium Priority</option>
+      <option value="low">🟢 Low Priority</option>
     </select>
   );
 }
 ```
 
-### Priority Filter Buttons Component
+### Priority Filter Component
 
-**File**: `components/PriorityFilter.tsx`
-
-```typescript
-import { Priority, PRIORITY_CONFIG } from '@/lib/db';
+```tsx
+import { Priority } from '@/lib/db';
+import { useState } from 'react';
 
 interface PriorityFilterProps {
-  selectedPriority: Priority | 'all';
-  onFilterChange: (priority: Priority | 'all') => void;
-  counts: Record<Priority, number>;
+  onFilterChange: (priority: Priority | null) => void;
+  stats?: { priority: Priority; count: number }[];
 }
 
-export function PriorityFilter({ selectedPriority, onFilterChange, counts }: PriorityFilterProps) {
-  const totalCount = Object.values(counts).reduce((sum, count) => sum + count, 0);
-
+export function PriorityFilter({ onFilterChange, stats }: PriorityFilterProps) {
+  const [selectedPriority, setSelectedPriority] = useState<Priority | null>(null);
+  
+  const handleChange = (value: string) => {
+    const priority = value === 'all' ? null : (value as Priority);
+    setSelectedPriority(priority);
+    onFilterChange(priority);
+  };
+  
+  const getCount = (priority: Priority) => {
+    return stats?.find(s => s.priority === priority)?.count ?? 0;
+  };
+  
   return (
-    <div className="flex gap-2 mb-4">
-      <button
-        onClick={() => onFilterChange('all')}
-        className={`
-          px-4 py-2 rounded-lg font-medium transition
-          ${selectedPriority === 'all' 
-            ? 'bg-gray-800 text-white' 
-            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }
-        `}
+    <div className="flex items-center gap-2">
+      <label htmlFor="priority-filter" className="text-sm font-medium text-gray-700">
+        Filter by Priority:
+      </label>
+      <select
+        id="priority-filter"
+        value={selectedPriority ?? 'all'}
+        onChange={(e) => handleChange(e.target.value)}
+        className="
+          rounded-md border border-gray-300 px-3 py-2
+          text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500
+        "
       >
-        All ({totalCount})
-      </button>
-      
-      {Object.entries(PRIORITY_CONFIG).map(([key, config]) => {
-        const priority = key as Priority;
-        const count = counts[priority];
-        
-        return (
-          <button
-            key={key}
-            onClick={() => onFilterChange(priority)}
-            className={`
-              px-4 py-2 rounded-lg font-medium transition
-              border-2
-              ${selectedPriority === priority
-                ? `${config.bgColor} ${config.textColor} ${config.borderColor}`
-                : `bg-white ${config.textColor} border-gray-200 hover:${config.bgColor}`
-              }
-            `}
-          >
-            {config.label} ({count})
-          </button>
-        );
-      })}
+        <option value="all">All Priorities</option>
+        <option value="high">🔴 High ({getCount('high')})</option>
+        <option value="medium">🟡 Medium ({getCount('medium')})</option>
+        <option value="low">🟢 Low ({getCount('low')})</option>
+      </select>
+      {selectedPriority && (
+        <button
+          onClick={() => handleChange('all')}
+          className="text-sm text-blue-600 hover:text-blue-800 underline"
+        >
+          Clear filter
+        </button>
+      )}
     </div>
   );
 }
 ```
 
-### Updated Main Todo Page
+### Integration in Main Todo Component
 
-**File**: `app/page.tsx` (key additions)
+```tsx
+// In app/page.tsx
 
-```typescript
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -636,874 +435,603 @@ import { PriorityBadge } from '@/components/PriorityBadge';
 import { PrioritySelector } from '@/components/PrioritySelector';
 import { PriorityFilter } from '@/components/PriorityFilter';
 
-export default function TodosPage() {
+export default function HomePage() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [newTitle, setNewTitle] = useState('');
-  const [newDueDate, setNewDueDate] = useState('');
-  const [newPriority, setNewPriority] = useState<Priority>('medium');  // NEW
-  const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');  // NEW
-  const [priorityCounts, setPriorityCounts] = useState({ high: 0, medium: 0, low: 0 });  // NEW
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editPriority, setEditPriority] = useState<Priority>('medium');  // NEW
-  // ... existing state
-
+  const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
+  const [priorityStats, setPriorityStats] = useState<{ priority: Priority; count: number }[]>([]);
+  
+  // Fetch priority stats
   useEffect(() => {
-    fetchTodos();
-    fetchPriorityCounts();  // NEW
-  }, []);
-
-  const fetchPriorityCounts = async () => {
-    try {
-      const response = await fetch('/api/todos/priority-counts');
-      if (!response.ok) throw new Error('Failed to fetch counts');
-      const data = await response.json();
-      setPriorityCounts(data);
-    } catch (err) {
-      console.error('Error fetching priority counts:', err);
+    fetch('/api/todos/stats/priority')
+      .then(res => res.json())
+      .then(data => setPriorityStats(data.stats));
+  }, [todos]);
+  
+  // Client-side sorting with priority
+  const sortedTodos = [...todos].sort((a, b) => {
+    if (a.is_completed !== b.is_completed) {
+      return a.is_completed - b.is_completed;
     }
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-
-    const optimisticTodo: Todo = {
-      id: Date.now(),
-      user_id: 0,
-      title: newTitle.trim(),
-      completed: false,
-      priority: newPriority,  // NEW
-      due_date: newDueDate || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // Optimistic update with proper sorting
-    setTodos([optimisticTodo, ...todos].sort(sortByPriority));  // NEW: Sort by priority
-    setNewTitle('');
-    setNewDueDate('');
-    setNewPriority('medium');  // NEW: Reset to default
-
+    
+    const priorityOrder = { high: 1, medium: 2, low: 3 };
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+  
+  // Filter by priority
+  const filteredTodos = priorityFilter
+    ? sortedTodos.filter(todo => todo.priority === priorityFilter)
+    : sortedTodos;
+  
+  // Handle priority change
+  const updateTodoPriority = async (todoId: number, newPriority: Priority) => {
+    // Optimistic update
+    setTodos(prev => prev.map(t => 
+      t.id === todoId ? { ...t, priority: newPriority } : t
+    ));
+    
     try {
-      const response = await fetch('/api/todos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newTitle.trim(),
-          priority: newPriority,  // NEW
-          due_date: newDueDate || null,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to create todo');
-      const createdTodo = await response.json();
-
-      setTodos(todos => todos.map(t => t.id === optimisticTodo.id ? createdTodo : t));
-      fetchPriorityCounts();  // NEW: Update counts
-    } catch (err) {
-      setTodos(todos => todos.filter(t => t.id !== optimisticTodo.id));
-      setError('Failed to create todo');
-      console.error(err);
-    }
-  };
-
-  const handleEdit = (todo: Todo) => {
-    setEditingId(todo.id);
-    setEditTitle(todo.title);
-    setEditDueDate(todo.due_date || '');
-    setEditPriority(todo.priority);  // NEW
-  };
-
-  const handleSaveEdit = async (todo: Todo) => {
-    if (!editTitle.trim()) return;
-
-    const originalTodo = todo;
-
-    setTodos(todos => 
-      todos.map(t =>
-        t.id === todo.id 
-          ? { ...t, title: editTitle.trim(), due_date: editDueDate || null, priority: editPriority }  // NEW: Include priority
-          : t
-      ).sort(sortByPriority)  // NEW: Re-sort after edit
-    );
-    setEditingId(null);
-
-    try {
-      const response = await fetch(`/api/todos/${todo.id}`, {
+      const response = await fetch(`/api/todos/${todoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          priority: editPriority,  // NEW
-          due_date: editDueDate || null,
-        }),
+        body: JSON.stringify({ priority: newPriority })
       });
-
-      if (!response.ok) throw new Error('Failed to update todo');
-      const updatedTodo = await response.json();
-      setTodos(todos => todos.map(t => t.id === todo.id ? updatedTodo : t).sort(sortByPriority));
-      fetchPriorityCounts();  // NEW: Update counts
-    } catch (err) {
-      setTodos(todos => todos.map(t => t.id === todo.id ? originalTodo : t));
-      setEditingId(todo.id);
-      setError('Failed to update todo');
-      console.error(err);
+      
+      if (!response.ok) {
+        throw new Error('Failed to update priority');
+      }
+    } catch (error) {
+      // Revert on error
+      fetchTodos();
+      console.error('Error updating priority:', error);
     }
   };
-
-  // NEW: Sorting function
-  const sortByPriority = (a: Todo, b: Todo) => {
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    const aPriority = priorityOrder[a.priority];
-    const bPriority = priorityOrder[b.priority];
-    
-    if (aPriority !== bPriority) {
-      return aPriority - bPriority;
-    }
-    
-    // Same priority: sort by creation date (newest first)
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  };
-
-  // NEW: Filter todos by priority
-  const filteredTodos = priorityFilter === 'all' 
-    ? todos 
-    : todos.filter(t => t.priority === priorityFilter);
-
+  
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">My Todos</h1>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {/* NEW: Priority Filter */}
-      <PriorityFilter
-        selectedPriority={priorityFilter}
-        onFilterChange={setPriorityFilter}
-        counts={priorityCounts}
-      />
-
-      {/* Create Todo Form */}
-      <form onSubmit={handleCreate} className="mb-6 flex gap-2">
-        <input
-          type="text"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          placeholder="What needs to be done?"
-          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          maxLength={500}
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <PriorityFilter 
+          onFilterChange={setPriorityFilter}
+          stats={priorityStats}
         />
-        {/* NEW: Priority Selector */}
-        <PrioritySelector
-          value={newPriority}
-          onChange={setNewPriority}
-        />
-        <input
-          type="date"
-          value={newDueDate}
-          onChange={(e) => setNewDueDate(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="submit"
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-          disabled={!newTitle.trim()}
-        >
-          Add
-        </button>
-      </form>
-
-      {/* Todo List */}
-      <div className="space-y-2">
-        {filteredTodos.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            {priorityFilter === 'all' 
-              ? 'No todos yet. Create one above!' 
-              : `No ${priorityFilter} priority todos.`
-            }
-          </p>
-        ) : (
-          filteredTodos.map(todo => (
-            <div
-              key={todo.id}
-              className="flex items-center gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition"
-            >
-              <input
-                type="checkbox"
-                checked={todo.completed}
-                onChange={() => handleToggleComplete(todo)}
-                className="w-5 h-5 cursor-pointer"
+      </div>
+      
+      <div className="space-y-4">
+        {filteredTodos.map(todo => (
+          <div key={todo.id} className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold">{todo.title}</h3>
+                <div className="mt-2 flex items-center gap-2">
+                  <PriorityBadge priority={todo.priority} />
+                </div>
+              </div>
+              
+              <PrioritySelector
+                value={todo.priority}
+                onChange={(priority) => updateTodoPriority(todo.id, priority)}
+                disabled={todo.is_completed === 1}
               />
-
-              {editingId === todo.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="flex-1 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    maxLength={500}
-                  />
-                  {/* NEW: Priority Selector in Edit Mode */}
-                  <PrioritySelector
-                    value={editPriority}
-                    onChange={setEditPriority}
-                  />
-                  <input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={() => handleSaveEdit(todo)}
-                    className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      {/* NEW: Priority Badge */}
-                      <PriorityBadge priority={todo.priority} />
-                      <p className={`${todo.completed ? 'line-through text-gray-400' : ''}`}>
-                        {todo.title}
-                      </p>
-                    </div>
-                    {todo.due_date && (
-                      <p className="text-sm text-gray-500">
-                        Due: {formatSingaporeDate(todo.due_date, 'MMM dd, yyyy')}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleEdit(todo)}
-                    className="px-3 py-1 text-blue-500 hover:bg-blue-50 rounded"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(todo)}
-                    className="px-3 py-1 text-red-500 hover:bg-red-50 rounded"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
             </div>
-          ))
-        )}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 ```
 
----
+## Edge Cases
 
-## ⚠️ Edge Cases
+### 1. Priority with Completed Todos
 
-### 1. Invalid Priority Value from Client
-**Scenario**: Malicious or buggy client sends priority value other than 'high', 'medium', 'low'  
-**Handling**:
-- Server validation rejects with 400 error: "Priority must be one of: high, medium, low"
-- Database CHECK constraint provides second layer of protection
-- Client dropdown prevents invalid selection in normal use
+**Scenario**: User completes a High priority todo
+**Expected Behavior**: 
+- Todo moves to completed section
+- Priority badge remains visible but grayed out
+- Todo no longer appears in active priority sorting
+- Priority is preserved in database for historical record
 
-### 2. Missing Priority During Migration
-**Scenario**: Existing todos created before priority feature lack priority field  
-**Handling**:
-- Database migration sets `DEFAULT 'medium'` on column
-- All existing todos automatically assigned 'medium' priority
-- No null/undefined values possible
-
-### 3. Priority Change Affecting Sort Order
-**Scenario**: User changes todo from 'low' to 'high' while viewing filtered list  
-**Handling**:
-- Todo immediately repositions to top of list (optimistic update)
-- If filter is active and new priority doesn't match filter, todo disappears
-- Priority counts update to reflect change
-- User sees smooth transition with no page refresh
-
-### 4. Concurrent Priority Edits
-**Scenario**: User edits same todo's priority in two browser tabs  
-**Handling**:
-- Last write wins (consistent with other todo updates)
-- Both tabs re-fetch on save, eventually showing same priority
-- No data corruption due to atomic database updates
-
-### 5. Filtering Edge Cases
-**Scenario**: User filters by 'high' priority but no high-priority todos exist  
-**Handling**:
-- Show empty state: "No high priority todos."
-- Filter button shows count of 0: "High (0)"
-- User can still create new high-priority todos
-- Filter persists during session
-
-### 6. Priority Display During Optimistic Update Failure
-**Scenario**: Priority update fails due to network error after optimistic UI change  
-**Handling**:
-- Todo reverts to original priority
-- Badge color changes back immediately
-- Todo repositions to original location in sorted list
-- Error message shown: "Failed to update todo"
-
-### 7. Sort Stability Within Priority Levels
-**Scenario**: Multiple todos with same priority  
-**Handling**:
-- Secondary sort by `created_at DESC` (newest first)
-- Consistent ordering across page refreshes
-- Position doesn't change unless priority or creation date differs
-
-### 8. Priority Badge Accessibility
-**Scenario**: Color-blind users cannot distinguish priority badges by color alone  
-**Handling**:
-- Badge includes text label (High/Medium/Low)
-- ARIA labels on interactive elements
-- Keyboard navigation support for priority selector
-- Future: Consider icons in addition to colors
-
-### 9. Priority Counts Out of Sync
-**Scenario**: Counts in filter buttons don't match actual todo counts  
-**Handling**:
-- Counts refresh after create/update/delete operations
-- Counts query only includes incomplete todos (completed todos excluded)
-- If discrepancy occurs, counts refresh on next page load
-- Consider debounced count refresh for heavy usage
-
-### 10. Default Priority Selection
-**Scenario**: User wants different default priority than 'medium'  
-**Handling**:
-- Out of scope for this PRP (user preferences in future)
-- Current implementation always defaults to 'medium'
-- Last selected priority doesn't persist across page refreshes
-- Reset to 'medium' after creating todo
-
----
-
-## ✅ Acceptance Criteria
-
-### Functional Requirements
-
-1. **Priority Assignment**
-   - [ ] User can select priority when creating a new todo
-   - [ ] Priority defaults to 'medium' if not specified
-   - [ ] Priority selector shows three options: High, Medium, Low
-   - [ ] Selected priority is saved to database correctly
-
-2. **Priority Display**
-   - [ ] Each todo displays a color-coded priority badge
-   - [ ] High priority shows red badge with "High" label
-   - [ ] Medium priority shows yellow badge with "Medium" label
-   - [ ] Low priority shows blue badge with "Low" label
-   - [ ] Badge appears next to todo title in list view
-
-3. **Priority Editing**
-   - [ ] User can change priority in edit mode
-   - [ ] Priority selector shows current priority value
-   - [ ] Changing priority triggers re-sort of todo list
-   - [ ] Priority change persists after save
-
-4. **Automatic Sorting**
-   - [ ] Todos automatically sorted by priority: High → Medium → Low
-   - [ ] Within same priority, sorted by creation date (newest first)
-   - [ ] Sort order maintained across page refreshes
-   - [ ] Sort order updates immediately after priority changes
-
-5. **Priority Filtering**
-   - [ ] Filter buttons shown for All, High, Medium, Low
-   - [ ] Filter buttons display count of todos for each priority
-   - [ ] Clicking filter button shows only matching todos
-   - [ ] "All" filter shows all todos regardless of priority
-   - [ ] Filter selection persists during current session
-   - [ ] Filter resets to "All" on page refresh
-
-### Non-Functional Requirements
-
-6. **Visual Design**
-   - [ ] Priority badges use consistent color scheme across app
-   - [ ] Badge colors have sufficient contrast for accessibility (WCAG AA)
-   - [ ] Priority selector styled consistently with other form controls
-   - [ ] Filter buttons have clear active/inactive states
-
-7. **Performance**
-   - [ ] Priority-based sorting completes in < 50ms for 1000 todos
-   - [ ] Filter application is instant (client-side filtering)
-   - [ ] No visible lag when changing priority in edit mode
-   - [ ] Priority counts query completes in < 100ms
-
-8. **Data Integrity**
-   - [ ] Database CHECK constraint prevents invalid priority values
-   - [ ] Existing todos migrated with default 'medium' priority
-   - [ ] Priority field is non-nullable in database
-   - [ ] API validation rejects invalid priority values
-
-9. **Backward Compatibility**
-   - [ ] Database migration runs without errors
-   - [ ] Existing todo CRUD operations continue to work
-   - [ ] API endpoints remain backward compatible
-   - [ ] No breaking changes to existing tests
-
-10. **Error Handling**
-    - [ ] Invalid priority values return clear error messages
-    - [ ] Failed priority updates rollback optimistic changes
-    - [ ] Network errors don't corrupt local todo state
-    - [ ] Priority count fetch failures don't crash UI
-
----
-
-## 🧪 Testing Requirements
-
-### E2E Tests (Playwright)
-
-**File**: `tests/03-priority-system.spec.ts`
-
+**Implementation**:
 ```typescript
-import { test, expect } from '@playwright/test';
-import { TestHelper } from './helpers';
-
-test.describe('Priority System', () => {
-  let helper: TestHelper;
-
-  test.beforeEach(async ({ page }) => {
-    helper = new TestHelper(page);
-    await helper.registerAndLogin();
-  });
-
-  test('should create todo with default medium priority', async ({ page }) => {
-    await helper.createTodo('Default priority todo');
-    
-    const badge = page.locator('text=Default priority todo').locator('..').locator('[class*="bg-yellow"]');
-    await expect(badge).toContainText('Medium');
-  });
-
-  test('should create todo with high priority', async ({ page }) => {
-    await page.fill('input[placeholder*="What needs to be done"]', 'Urgent task');
-    await page.selectOption('select', 'high');
-    await page.click('button:has-text("Add")');
-    
-    const badge = page.locator('text=Urgent task').locator('..').locator('[class*="bg-red"]');
-    await expect(badge).toContainText('High');
-  });
-
-  test('should create todo with low priority', async ({ page }) => {
-    await page.fill('input[placeholder*="What needs to be done"]', 'Low priority task');
-    await page.selectOption('select', 'low');
-    await page.click('button:has-text("Add")');
-    
-    const badge = page.locator('text=Low priority task').locator('..').locator('[class*="bg-blue"]');
-    await expect(badge).toContainText('Low');
-  });
-
-  test('should display correct priority badge colors', async ({ page }) => {
-    await helper.createTodoWithPriority('High priority', 'high');
-    await helper.createTodoWithPriority('Medium priority', 'medium');
-    await helper.createTodoWithPriority('Low priority', 'low');
-    
-    await expect(page.locator('text=High priority').locator('..').locator('[class*="bg-red"]')).toBeVisible();
-    await expect(page.locator('text=Medium priority').locator('..').locator('[class*="bg-yellow"]')).toBeVisible();
-    await expect(page.locator('text=Low priority').locator('..').locator('[class*="bg-blue"]')).toBeVisible();
-  });
-
-  test('should sort todos by priority automatically', async ({ page }) => {
-    await helper.createTodoWithPriority('Low task', 'low');
-    await helper.createTodoWithPriority('High task', 'high');
-    await helper.createTodoWithPriority('Medium task', 'medium');
-    
-    const todos = page.locator('[class*="bg-white border rounded-lg"]');
-    await expect(todos.nth(0)).toContainText('High task');
-    await expect(todos.nth(1)).toContainText('Medium task');
-    await expect(todos.nth(2)).toContainText('Low task');
-  });
-
-  test('should maintain sort order within same priority', async ({ page }) => {
-    await helper.createTodoWithPriority('High 1', 'high');
-    await page.waitForTimeout(100);
-    await helper.createTodoWithPriority('High 2', 'high');
-    await page.waitForTimeout(100);
-    await helper.createTodoWithPriority('High 3', 'high');
-    
-    const todos = page.locator('[class*="bg-white border rounded-lg"]');
-    await expect(todos.nth(0)).toContainText('High 3'); // Newest first
-    await expect(todos.nth(1)).toContainText('High 2');
-    await expect(todos.nth(2)).toContainText('High 1');
-  });
-
-  test('should change priority in edit mode', async ({ page }) => {
-    await helper.createTodoWithPriority('Change priority', 'low');
-    
-    await page.click('button:has-text("Edit")');
-    await page.selectOption('select', 'high');
-    await page.click('button:has-text("Save")');
-    
-    const badge = page.locator('text=Change priority').locator('..').locator('[class*="bg-red"]');
-    await expect(badge).toContainText('High');
-  });
-
-  test('should re-sort after priority change', async ({ page }) => {
-    await helper.createTodoWithPriority('Task 1', 'high');
-    await helper.createTodoWithPriority('Task 2', 'low');
-    
-    // Change Task 2 from low to high
-    await page.locator('text=Task 2').locator('..').locator('button:has-text("Edit")').click();
-    await page.selectOption('select', 'high');
-    await page.click('button:has-text("Save")');
-    
-    // Both should now be at top (high priority)
-    const todos = page.locator('[class*="bg-white border rounded-lg"]');
-    await expect(todos.nth(0)).toContainText('Task 2'); // Newer
-    await expect(todos.nth(1)).toContainText('Task 1');
-  });
-
-  test('should filter by high priority', async ({ page }) => {
-    await helper.createTodoWithPriority('High task', 'high');
-    await helper.createTodoWithPriority('Medium task', 'medium');
-    await helper.createTodoWithPriority('Low task', 'low');
-    
-    await page.click('button:has-text("High")');
-    
-    await expect(page.locator('text=High task')).toBeVisible();
-    await expect(page.locator('text=Medium task')).not.toBeVisible();
-    await expect(page.locator('text=Low task')).not.toBeVisible();
-  });
-
-  test('should filter by medium priority', async ({ page }) => {
-    await helper.createTodoWithPriority('High task', 'high');
-    await helper.createTodoWithPriority('Medium task', 'medium');
-    await helper.createTodoWithPriority('Low task', 'low');
-    
-    await page.click('button:has-text("Medium")');
-    
-    await expect(page.locator('text=High task')).not.toBeVisible();
-    await expect(page.locator('text=Medium task')).toBeVisible();
-    await expect(page.locator('text=Low task')).not.toBeVisible();
-  });
-
-  test('should filter by low priority', async ({ page }) => {
-    await helper.createTodoWithPriority('High task', 'high');
-    await helper.createTodoWithPriority('Medium task', 'medium');
-    await helper.createTodoWithPriority('Low task', 'low');
-    
-    await page.click('button:has-text("Low")');
-    
-    await expect(page.locator('text=High task')).not.toBeVisible();
-    await expect(page.locator('text=Medium task')).not.toBeVisible();
-    await expect(page.locator('text=Low task')).toBeVisible();
-  });
-
-  test('should show all todos with "All" filter', async ({ page }) => {
-    await helper.createTodoWithPriority('High task', 'high');
-    await helper.createTodoWithPriority('Medium task', 'medium');
-    await helper.createTodoWithPriority('Low task', 'low');
-    
-    await page.click('button:has-text("Low")'); // First filter by low
-    await page.click('button:has-text("All")'); // Then show all
-    
-    await expect(page.locator('text=High task')).toBeVisible();
-    await expect(page.locator('text=Medium task')).toBeVisible();
-    await expect(page.locator('text=Low task')).toBeVisible();
-  });
-
-  test('should display correct priority counts', async ({ page }) => {
-    await helper.createTodoWithPriority('High 1', 'high');
-    await helper.createTodoWithPriority('High 2', 'high');
-    await helper.createTodoWithPriority('Medium 1', 'medium');
-    await helper.createTodoWithPriority('Low 1', 'low');
-    await helper.createTodoWithPriority('Low 2', 'low');
-    await helper.createTodoWithPriority('Low 3', 'low');
-    
-    await expect(page.locator('button:has-text("High (2)")')).toBeVisible();
-    await expect(page.locator('button:has-text("Medium (1)")')).toBeVisible();
-    await expect(page.locator('button:has-text("Low (3)")')).toBeVisible();
-  });
-
-  test('should update counts after todo creation', async ({ page }) => {
-    await expect(page.locator('button:has-text("High (0)")')).toBeVisible();
-    
-    await helper.createTodoWithPriority('High task', 'high');
-    
-    await expect(page.locator('button:has-text("High (1)")')).toBeVisible();
-  });
-
-  test('should update counts after priority change', async ({ page }) => {
-    await helper.createTodoWithPriority('Task', 'low');
-    await expect(page.locator('button:has-text("Low (1)")')).toBeVisible();
-    
-    await page.click('button:has-text("Edit")');
-    await page.selectOption('select', 'high');
-    await page.click('button:has-text("Save")');
-    
-    await expect(page.locator('button:has-text("High (1)")')).toBeVisible();
-    await expect(page.locator('button:has-text("Low (0)")')).toBeVisible();
-  });
-
-  test('should persist priority across page refresh', async ({ page }) => {
-    await helper.createTodoWithPriority('Persistent high', 'high');
-    
-    await page.reload();
-    
-    const badge = page.locator('text=Persistent high').locator('..').locator('[class*="bg-red"]');
-    await expect(badge).toContainText('High');
-  });
-
-  test('should show empty state for filtered priority with no todos', async ({ page }) => {
-    await page.click('button:has-text("High")');
-    
-    await expect(page.locator('text=No high priority todos')).toBeVisible();
-  });
-
-  test('should handle priority change with optimistic rollback on error', async ({ page }) => {
-    // This test would require mocking API failure
-    // Implementation depends on testing strategy for network errors
-  });
-});
+// Completed todos show muted priority badge
+<PriorityBadge 
+  priority={todo.priority} 
+  className={todo.is_completed ? 'opacity-50' : ''}
+/>
 ```
 
-### Helper Methods Update
+### 2. Bulk Priority Changes
 
-**File**: `tests/helpers.ts` (additions)
+**Scenario**: User wants to change multiple todos to High priority simultaneously
+**Expected Behavior**:
+- Not supported in current scope (no multi-select)
+- User must change priority one-by-one
+- Each change triggers individual API call
+- Optimistic UI updates provide immediate feedback
 
+### 3. Priority in Recurring Todos
+
+**Scenario**: User completes High priority recurring todo
+**Expected Behavior**:
+- Next instance inherits High priority
+- User can modify next instance priority independently
+- Priority inheritance is automatic, not configurable
+
+**Implementation** (in `PUT /api/todos/[id]` when marking complete):
 ```typescript
-export class TestHelper {
-  // Existing methods...
-
-  async createTodoWithPriority(title: string, priority: 'high' | 'medium' | 'low') {
-    await this.page.fill('input[placeholder*="What needs to be done"]', title);
-    await this.page.selectOption('select', priority);
-    await this.page.click('button:has-text("Add")');
-    await this.page.waitForSelector(`text=${title}`);
-  }
+if (todo.recurrence_pattern && updates.is_completed === 1) {
+  const nextDueDate = calculateNextDueDate(todo.due_date, todo.recurrence_pattern);
+  
+  todoDB.create({
+    user_id: todo.user_id,
+    title: todo.title,
+    description: todo.description,
+    priority: todo.priority, // Inherit priority
+    due_date: nextDueDate,
+    recurrence_pattern: todo.recurrence_pattern,
+    reminder_minutes: todo.reminder_minutes
+  });
 }
 ```
 
-### Unit Tests (Optional)
+### 4. Invalid Priority Values
 
-**File**: `lib/__tests__/priority.test.ts`
+**Scenario**: API receives invalid priority value (e.g., "urgent", "critical")
+**Expected Behavior**:
+- Database constraint rejects invalid value
+- API returns 400 Bad Request with clear error message
+- Client validation prevents invalid selection
+
+**Validation**:
+```typescript
+// In API route
+const validPriorities = ['high', 'medium', 'low'];
+if (priority && !validPriorities.includes(priority)) {
+  return NextResponse.json(
+    { error: 'Invalid priority. Must be high, medium, or low.' },
+    { status: 400 }
+  );
+}
+```
+
+### 5. Default Priority for New Todos
+
+**Scenario**: User creates todo without selecting priority
+**Expected Behavior**:
+- Default to "medium" priority
+- Database default constraint applies
+- UI pre-selects "Medium" in dropdown
+
+### 6. Priority Filter with Empty Results
+
+**Scenario**: User filters by High priority but has no High priority todos
+**Expected Behavior**:
+- Show empty state message: "No high priority todos found"
+- Display option to clear filter
+- Show create button with pre-selected High priority
+
+### 7. Priority Sorting with Same Priority Levels
+
+**Scenario**: Multiple todos have same priority
+**Expected Behavior**:
+- Secondary sort by due date (nearest first)
+- Tertiary sort by created date (newest first)
+- Todos without due dates appear last within priority group
+
+### 8. Migrating Existing Todos
+
+**Scenario**: Existing database has todos with NULL priority (pre-feature)
+**Expected Behavior**:
+- Migration sets NULL priorities to "medium"
+- All existing todos get default priority
+- No data loss
+
+**Migration**:
+```sql
+UPDATE todos SET priority = 'medium' WHERE priority IS NULL;
+```
+
+## Acceptance Criteria
+
+### Functional Requirements
+
+✅ **AC-1**: User can select priority (High/Medium/Low) when creating new todo
+- Priority dropdown is visible in create todo form
+- Default selection is "Medium"
+- Selected priority is saved to database
+
+✅ **AC-2**: User can change priority of existing todo
+- Priority dropdown is available on todo card
+- Change triggers immediate API update
+- UI reflects change without page refresh
+
+✅ **AC-3**: Todos display color-coded priority badges
+- High priority: Red badge (bg-red-100, text-red-800)
+- Medium priority: Yellow badge (bg-yellow-100, text-yellow-800)
+- Low priority: Green badge (bg-green-100, text-green-800)
+- Badges are visible and accessible
+
+✅ **AC-4**: Todos are automatically sorted by priority
+- Incomplete todos appear before completed todos
+- Within each group, High → Medium → Low order
+- Same priority todos sorted by due date, then created date
+
+✅ **AC-5**: User can filter todos by priority
+- Filter dropdown shows All/High/Medium/Low options
+- Filter displays count of todos in each priority
+- Filtering updates list without page reload
+
+✅ **AC-6**: Priority is preserved in recurring todos
+- Completed recurring todo creates next instance with same priority
+- Next instance can be modified independently
+
+✅ **AC-7**: Completed todos show muted priority indicators
+- Priority badge remains visible on completed todos
+- Badge has reduced opacity (50%)
+- Priority cannot be changed on completed todos
+
+### Non-Functional Requirements
+
+✅ **AC-8**: Priority changes are optimistic
+- UI updates immediately on selection
+- API call happens in background
+- Reverts on error with user notification
+
+✅ **AC-9**: Priority filter is performant
+- Filtering happens client-side
+- No perceptible delay with 1000+ todos
+- Stats calculation is efficient
+
+✅ **AC-10**: Accessibility compliance
+- Priority selectors are keyboard navigable
+- Screen readers announce priority levels
+- Color is not the only indicator (text labels included)
+
+## Testing Requirements
+
+### E2E Tests (Playwright)
+
+**Test File**: `tests/02-priority-system.spec.ts`
 
 ```typescript
-import { todoDB, Priority } from '../db';
+import { test, expect } from '@playwright/test';
+import { AuthHelper } from './helpers';
 
-describe('Priority System', () => {
-  const TEST_USER_ID = 1;
-
-  beforeEach(() => {
-    db.exec('DELETE FROM todos');
+test.describe('Priority System', () => {
+  let authHelper: AuthHelper;
+  
+  test.beforeEach(async ({ page }) => {
+    authHelper = new AuthHelper(page);
+    await authHelper.registerAndLogin();
   });
-
-  test('should create todo with specified priority', () => {
-    const todo = todoDB.create(TEST_USER_ID, { 
-      title: 'Test', 
-      priority: 'high' 
-    });
-    expect(todo.priority).toBe('high');
-  });
-
-  test('should default to medium priority when not specified', () => {
-    const todo = todoDB.create(TEST_USER_ID, { title: 'Test' });
-    expect(todo.priority).toBe('medium');
-  });
-
-  test('should sort todos by priority correctly', () => {
-    todoDB.create(TEST_USER_ID, { title: 'Low', priority: 'low' });
-    todoDB.create(TEST_USER_ID, { title: 'High', priority: 'high' });
-    todoDB.create(TEST_USER_ID, { title: 'Medium', priority: 'medium' });
-
-    const todos = todoDB.getAll(TEST_USER_ID);
-    expect(todos.map(t => t.priority)).toEqual(['high', 'medium', 'low']);
-  });
-
-  test('should filter todos by priority', () => {
-    todoDB.create(TEST_USER_ID, { title: 'High 1', priority: 'high' });
-    todoDB.create(TEST_USER_ID, { title: 'High 2', priority: 'high' });
-    todoDB.create(TEST_USER_ID, { title: 'Low', priority: 'low' });
-
-    const highPriority = todoDB.getByPriority(TEST_USER_ID, 'high');
-    expect(highPriority).toHaveLength(2);
-    expect(highPriority.every(t => t.priority === 'high')).toBe(true);
-  });
-
-  test('should return correct priority counts', () => {
-    todoDB.create(TEST_USER_ID, { title: 'High', priority: 'high' });
-    todoDB.create(TEST_USER_ID, { title: 'Medium 1', priority: 'medium' });
-    todoDB.create(TEST_USER_ID, { title: 'Medium 2', priority: 'medium' });
-
-    const counts = todoDB.getCountByPriority(TEST_USER_ID);
-    expect(counts).toEqual({ high: 1, medium: 2, low: 0 });
-  });
-
-  test('should update priority', () => {
-    const todo = todoDB.create(TEST_USER_ID, { title: 'Test', priority: 'low' });
-    const updated = todoDB.update(TEST_USER_ID, todo.id, { priority: 'high' });
+  
+  test('should create todo with high priority', async ({ page }) => {
+    await page.fill('input[name="title"]', 'Urgent task');
+    await page.selectOption('select[name="priority"]', 'high');
+    await page.click('button:has-text("Add Todo")');
     
-    expect(updated?.priority).toBe('high');
+    // Verify badge
+    const badge = page.locator('text=Urgent task').locator('..').locator('.bg-red-100');
+    await expect(badge).toContainText('High');
+  });
+  
+  test('should sort todos by priority', async ({ page }) => {
+    // Create todos with different priorities
+    await authHelper.createTodo('Low priority task', { priority: 'low' });
+    await authHelper.createTodo('High priority task', { priority: 'high' });
+    await authHelper.createTodo('Medium priority task', { priority: 'medium' });
+    
+    // Verify order
+    const todos = page.locator('[data-testid="todo-item"]');
+    await expect(todos.nth(0)).toContainText('High priority task');
+    await expect(todos.nth(1)).toContainText('Medium priority task');
+    await expect(todos.nth(2)).toContainText('Low priority task');
+  });
+  
+  test('should change todo priority', async ({ page }) => {
+    await authHelper.createTodo('Task to reprioritize', { priority: 'low' });
+    
+    // Change priority
+    await page.selectOption('[data-testid="todo-1"] select[name="priority"]', 'high');
+    
+    // Verify update
+    await page.waitForTimeout(500); // Wait for API
+    const badge = page.locator('[data-testid="todo-1"] .bg-red-100');
+    await expect(badge).toContainText('High');
+  });
+  
+  test('should filter todos by priority', async ({ page }) => {
+    await authHelper.createTodo('High task 1', { priority: 'high' });
+    await authHelper.createTodo('Low task 1', { priority: 'low' });
+    await authHelper.createTodo('High task 2', { priority: 'high' });
+    
+    // Apply filter
+    await page.selectOption('select[aria-label="Filter by priority"]', 'high');
+    
+    // Verify filtered list
+    const todos = page.locator('[data-testid="todo-item"]');
+    await expect(todos).toHaveCount(2);
+    await expect(todos.nth(0)).toContainText('High task');
+    await expect(todos.nth(1)).toContainText('High task');
+  });
+  
+  test('should preserve priority in recurring todos', async ({ page }) => {
+    await authHelper.createTodo('Weekly meeting', {
+      priority: 'high',
+      recurrence: 'weekly',
+      dueDate: '2025-11-13'
+    });
+    
+    // Complete todo
+    await page.click('[data-testid="todo-1"] input[type="checkbox"]');
+    
+    // Verify next instance has high priority
+    await page.waitForTimeout(500);
+    const newTodoBadge = page.locator('[data-testid="todo-2"] .bg-red-100');
+    await expect(newTodoBadge).toContainText('High');
+  });
+  
+  test('should show muted priority on completed todos', async ({ page }) => {
+    await authHelper.createTodo('Task to complete', { priority: 'high' });
+    
+    // Complete todo
+    await page.click('[data-testid="todo-1"] input[type="checkbox"]');
+    
+    // Verify muted badge
+    const badge = page.locator('[data-testid="todo-1"] .bg-red-100');
+    await expect(badge).toHaveClass(/opacity-50/);
+  });
+  
+  test('should display priority stats in filter', async ({ page }) => {
+    await authHelper.createTodo('High 1', { priority: 'high' });
+    await authHelper.createTodo('High 2', { priority: 'high' });
+    await authHelper.createTodo('Low 1', { priority: 'low' });
+    
+    // Check filter counts
+    const filterSelect = page.locator('select[aria-label="Filter by priority"]');
+    const highOption = filterSelect.locator('option[value="high"]');
+    await expect(highOption).toContainText('(2)');
+    
+    const lowOption = filterSelect.locator('option[value="low"]');
+    await expect(lowOption).toContainText('(1)');
   });
 });
 ```
 
----
+### Unit Tests
 
-## 🚫 Out of Scope
+**Test File**: `tests/unit/priority.test.ts`
 
-The following features are **explicitly excluded** from this PRP:
+```typescript
+import { describe, it, expect } from 'vitest';
+import { PRIORITY_CONFIG } from '@/lib/db';
 
-1. **Custom Priority Levels** - Only three predefined levels (no user-defined priorities)
-2. **Priority Icons** - Text labels only (no visual icons like flags or stars)
-3. **Bulk Priority Updates** - Changing priority for multiple todos at once
-4. **Priority-Based Notifications** - Different notification timing based on priority
-5. **User-Configurable Colors** - Fixed color scheme (no customization)
-6. **Priority History** - No tracking of priority changes over time
-7. **Default Priority Preferences** - Always defaults to 'medium' (no user setting)
-8. **Priority-Based Deadlines** - No automatic due date suggestions based on priority
-9. **Smart Priority Suggestions** - No AI/ML-based priority recommendations
-10. **Priority Statistics** - No analytics on priority distribution or completion rates
-11. **Keyboard Shortcuts** - No keyboard shortcuts for priority selection
-12. **Drag-and-Drop Priority** - No drag-to-reorder for manual priority override
-13. **Priority Templates** - Templates (PRP-07) will include priority, but no priority-specific templates
-14. **Priority in Calendar View** - Calendar (PRP-10) will show priority, but covered in that PRP
-15. **Mobile Gestures** - No swipe-to-change-priority on mobile (web only)
+describe('Priority Configuration', () => {
+  it('should have correct sort order', () => {
+    expect(PRIORITY_CONFIG.high.sortOrder).toBe(1);
+    expect(PRIORITY_CONFIG.medium.sortOrder).toBe(2);
+    expect(PRIORITY_CONFIG.low.sortOrder).toBe(3);
+  });
+  
+  it('should have distinct colors for each priority', () => {
+    const colors = Object.values(PRIORITY_CONFIG).map(c => c.color);
+    const uniqueColors = new Set(colors);
+    expect(uniqueColors.size).toBe(3);
+  });
+});
 
----
+describe('Priority Sorting', () => {
+  it('should sort by priority then due date', () => {
+    const todos = [
+      { priority: 'low', due_date: '2025-11-15', is_completed: 0 },
+      { priority: 'high', due_date: '2025-11-20', is_completed: 0 },
+      { priority: 'high', due_date: '2025-11-18', is_completed: 0 },
+      { priority: 'medium', due_date: '2025-11-16', is_completed: 0 }
+    ];
+    
+    const sorted = sortTodos(todos);
+    
+    expect(sorted[0].priority).toBe('high');
+    expect(sorted[0].due_date).toBe('2025-11-18');
+    expect(sorted[1].priority).toBe('high');
+    expect(sorted[1].due_date).toBe('2025-11-20');
+    expect(sorted[2].priority).toBe('medium');
+    expect(sorted[3].priority).toBe('low');
+  });
+});
+```
 
-## 📊 Success Metrics
+### API Tests
+
+**Test File**: `tests/api/priority.test.ts`
+
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createMocks } from 'node-mocks-http';
+import { POST as createTodo } from '@/app/api/todos/route';
+import { PUT as updateTodo } from '@/app/api/todos/[id]/route';
+
+describe('Priority API Endpoints', () => {
+  it('should create todo with specified priority', async () => {
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: {
+        title: 'High priority task',
+        priority: 'high'
+      }
+    });
+    
+    const response = await createTodo(req);
+    const data = await response.json();
+    
+    expect(response.status).toBe(201);
+    expect(data.priority).toBe('high');
+  });
+  
+  it('should default to medium priority when not specified', async () => {
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: {
+        title: 'Task without priority'
+      }
+    });
+    
+    const response = await createTodo(req);
+    const data = await response.json();
+    
+    expect(data.priority).toBe('medium');
+  });
+  
+  it('should reject invalid priority values', async () => {
+    const { req, res } = createMocks({
+      method: 'POST',
+      body: {
+        title: 'Task',
+        priority: 'urgent'
+      }
+    });
+    
+    const response = await createTodo(req);
+    
+    expect(response.status).toBe(400);
+    expect(await response.json()).toHaveProperty('error');
+  });
+  
+  it('should update todo priority', async () => {
+    // Create todo first
+    const createRes = await createTodo(/* ... */);
+    const { id } = await createRes.json();
+    
+    // Update priority
+    const { req: updateReq } = createMocks({
+      method: 'PUT',
+      body: { priority: 'high' }
+    });
+    
+    const response = await updateTodo(updateReq, { params: { id } });
+    const data = await response.json();
+    
+    expect(response.status).toBe(200);
+    expect(data.priority).toBe('high');
+  });
+});
+```
+
+## Out of Scope
+
+The following features are explicitly **not included** in this PRP:
+
+### 1. Custom Priority Levels
+- No ability to create user-defined priority levels
+- Fixed three-level system only
+- No priority level customization (naming, colors, sort order)
+
+### 2. Priority-Based Automation
+- No automatic priority adjustment based on due date proximity
+- No auto-escalation of overdue tasks to high priority
+- No smart priority suggestions based on keywords
+
+### 3. Bulk Priority Operations
+- No multi-select for changing multiple todo priorities at once
+- No "Set all to High" bulk action
+- Each priority change must be individual
+
+### 4. Priority Statistics Dashboard
+- No analytics view for priority distribution over time
+- No charts/graphs of priority completion rates
+- Basic count in filter dropdown only
+
+### 5. Priority-Based Notifications
+- No separate notification channels for high priority items
+- No different notification sounds per priority level
+- Reminders treat all priorities equally
+
+### 6. Sub-Priority or Numeric Priorities
+- No 1-10 numeric scale
+- No sub-levels (e.g., "High-Critical", "High-Normal")
+- Three discrete levels only
+
+### 7. Team/Shared Priority
+- No delegation of priority settings to other users
+- No team consensus on priority levels
+- Single-user priority assignment only
+
+### 8. Priority History/Audit Log
+- No tracking of priority changes over time
+- No "changed from Medium to High on X date" history
+- Current priority only
+
+## Success Metrics
 
 ### User Engagement Metrics
 
-1. **Priority Usage Rate**
-   - Target: 70% of todos have explicitly set priority (not just default medium)
-   - Measure: Todos with non-default priority / Total todos
+1. **Priority Adoption Rate**
+   - Target: >80% of todos have non-default priority within 2 weeks
+   - Measure: `COUNT(priority != 'medium') / COUNT(*) * 100`
 
-2. **High-Priority Completion Rate**
-   - Target: 85% of high-priority todos completed within 7 days
-   - Measure: Completed high-priority todos / Total high-priority todos
+2. **High Priority Completion Rate**
+   - Target: High priority todos completed 20% faster than low priority
+   - Measure: `AVG(completed_at - created_at) WHERE priority='high'`
 
 3. **Filter Usage**
-   - Target: 40% of active users use priority filters weekly
-   - Measure: Users who clicked filter button / Total active users
+   - Target: >40% of users use priority filter at least once per week
+   - Measure: Client-side analytics on filter interaction events
 
-### Performance Metrics
+### System Performance Metrics
 
-4. **Sort Performance**
-   - Target: Priority-based sort completes in < 50ms for 1000 todos
-   - Measure: SQL query execution time
+4. **Priority Change Response Time**
+   - Target: <200ms for priority update (optimistic UI)
+   - Measure: API response time for `PUT /api/todos/[id]` with priority change
 
-5. **Filter Response Time**
-   - Target: Instant (< 16ms for 60fps)
-   - Measure: Client-side filter function execution time
+5. **Sort Performance**
+   - Target: <50ms to sort 1000 todos client-side
+   - Measure: `performance.now()` around sort function
 
-6. **Count Query Performance**
-   - Target: Priority count endpoint responds in < 100ms
-   - Measure: API response time
+### User Satisfaction Metrics
 
-### User Experience Metrics
+6. **Task Completion Efficiency**
+   - Target: 30% reduction in time spent deciding what to work on next
+   - Measure: User surveys pre/post feature launch
 
-7. **Visual Clarity**
-   - Target: 95% of users can identify priority at a glance (user testing)
-   - Measure: User testing success rate
+7. **Visual Clarity Score**
+   - Target: >4.5/5 rating on "I can quickly identify important tasks"
+   - Measure: In-app feedback survey
 
-8. **Edit Efficiency**
-   - Target: Change priority in < 2 seconds
-   - Measure: Time from clicking edit to saving priority change
+### Technical Quality Metrics
 
-9. **Color Accessibility**
-   - Target: WCAG AA contrast ratio (4.5:1 minimum)
-   - Measure: Automated accessibility audit
+8. **Error Rate**
+   - Target: <0.1% error rate on priority operations
+   - Measure: API error responses / total priority API calls
 
-### Data Quality Metrics
+9. **Accessibility Compliance**
+   - Target: 100% WCAG 2.1 AA compliance for priority UI elements
+   - Measure: Automated accessibility testing (axe-core)
 
-10. **Migration Success**
-    - Target: 100% of existing todos assigned default priority
-    - Measure: Todos with NULL priority after migration
-
-11. **Validation Success**
-    - Target: 0 invalid priority values in database
-    - Measure: Database integrity check
-
-12. **Consistency**
-    - Target: Priority and sort order match 100% of the time
-    - Measure: Frontend sort order vs database query results
-
-### Behavioral Metrics (Post-Launch)
-
-13. **Priority Distribution**
-    - Expected: 20% high, 50% medium, 30% low (natural distribution)
-    - Measure: Priority distribution across all todos
-
-14. **Priority Change Frequency**
-    - Target: < 15% of todos have priority changed after creation
-    - Measure: Todos with updated priority / Total todos
-
-15. **Completion Rate by Priority**
-    - Hypothesis: High > Medium > Low completion rates
-    - Measure: Completion percentage for each priority level
+10. **Test Coverage**
+    - Target: >90% code coverage for priority-related functions
+    - Measure: Jest/Vitest coverage report
 
 ---
 
-## 📝 Implementation Notes
+## Implementation Checklist
 
-### Database Migration Steps
-
-1. Add priority column with default value
-2. Create index on priority column
-3. Verify all existing todos have 'medium' priority
-4. Test priority-based queries performance
-5. Deploy migration in production with rollback plan
-
-### Color Scheme Rationale
-
-- **Red (High)**: Universal indicator of urgency and importance
-- **Yellow (Medium)**: Warning/attention color, moderate urgency
-- **Blue (Low)**: Calm color, low stress, can wait
-
-### Performance Considerations
-
-- Priority filtering done client-side for instant response
-- Server-side sorting via SQL for consistency
-- Priority counts cached on client, refreshed after mutations
-- Consider memoization for sort function if performance issues arise
-
-### Accessibility Considerations
-
-- Text labels on all badges (not color alone)
-- ARIA labels on filter buttons
-- Keyboard navigation for priority selector
-- Screen reader announcements for priority changes
-
-### Next Steps After Implementation
-
-1. Run full E2E test suite
-2. Perform accessibility audit with axe DevTools
-3. Load test with 10,000+ todos
-4. Gather user feedback on color choices
-5. Monitor priority distribution metrics
-6. Proceed to PRP-03 (Recurring Todos)
+- [ ] Add priority validation to API routes
+- [ ] Implement priority sorting in client component
+- [ ] Create PriorityBadge component with color coding
+- [ ] Create PrioritySelector dropdown component
+- [ ] Create PriorityFilter component with stats
+- [ ] Add priority inheritance to recurring todo logic
+- [ ] Implement optimistic UI updates for priority changes
+- [ ] Add database indexes for priority queries
+- [ ] Write E2E tests for all priority user flows
+- [ ] Write unit tests for sorting logic
+- [ ] Add API tests for priority validation
+- [ ] Verify accessibility with screen reader
+- [ ] Performance test with 1000+ todos
+- [ ] Update USER_GUIDE.md with priority documentation
 
 ---
 
-## 🔗 Related PRPs
-
-- **PRP-01: Todo CRUD Operations** - Foundation (required)
-- **PRP-03: Recurring Todos** - Recurring instances inherit priority
-- **PRP-04: Reminders & Notifications** - Could use priority for notification timing (future)
-- **PRP-07: Template System** - Templates save priority along with other fields
-- **PRP-08: Search & Filtering** - Priority filtering complements search
-- **PRP-09: Export & Import** - Priority included in export data
-- **PRP-10: Calendar View** - Calendar displays priority badges
-
----
-
-**Document Version**: 1.0  
-**Author**: Senior Product Engineer  
-**Review Status**: Ready for Implementation  
-**Estimated Implementation Time**: 6-8 hours for experienced Next.js developer
+**Version**: 1.0  
+**Last Updated**: November 12, 2025  
+**Related PRPs**: 01-todo-crud-operations.md, 03-recurring-todos.md, 07-template-system.md

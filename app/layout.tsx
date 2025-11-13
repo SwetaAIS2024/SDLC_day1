@@ -1,21 +1,19 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Todo App - Singapore Timezone',
-  description: 'A Next.js todo application with WebAuthn authentication and Singapore timezone support',
-};
+  title: 'Todo App',
+  description: 'A feature-rich todo application with WebAuthn authentication',
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
-      <body className="antialiased bg-gray-50">
-        {children}
-      </body>
+      <body className="bg-[#2c3e50] min-h-screen">{children}</body>
     </html>
-  );
+  )
 }

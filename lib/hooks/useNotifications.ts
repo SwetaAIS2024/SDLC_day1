@@ -1,104 +1,98 @@
-/**
- * Notifications Hook
- * PRP-04: Manages browser notifications and polling for todo reminders
- */
-
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { Todo } from '@/lib/types';
-
-const POLL_INTERVAL = 60000; // 60 seconds
+import { useState, useEffect, useCallback } from 'react';
+import type { NotificationPayload } from '@/lib/types';
 
 export function useNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isPolling, setIsPolling] = useState(false);
-
-  // Check permission on mount
+  
   useEffect(() => {
+    // Check initial permission state
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setPermission(Notification.permission);
     }
   }, []);
-
-  // Request notification permission
-  const requestPermission = async () => {
-    if (!('Notification' in window)) {
+  
+  const requestPermission = useCallback(async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
       alert('This browser does not support notifications');
       return false;
     }
-
-    try {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      if (result === 'granted') {
-        setIsPolling(true);
-      }
-      return result === 'granted';
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
+    
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+    
+    if (Notification.permission === 'denied') {
+      alert('Notifications are blocked. Enable them in browser settings.');
       return false;
     }
-  };
-
-  // Show browser notification
-  const showNotification = (todo: Todo) => {
-    if (permission !== 'granted') return;
-
-    const title = '⏰ Todo Reminder';
-    const body = `Due soon: ${todo.title}`;
     
-    const notification = new Notification(title, {
-      body,
-      icon: '/icon.png', // You can add an icon if you have one
-      badge: '/badge.png',
-      tag: `todo-${todo.id}`, // Prevents duplicates
-      requireInteraction: true, // Notification stays until user interacts
+    const result = await Notification.requestPermission();
+    setPermission(result);
+    return result === 'granted';
+  }, []);
+  
+  const showNotification = useCallback((payload: NotificationPayload) => {
+    if (Notification.permission !== 'granted') return;
+    
+    const notification = new Notification(`🔔 ${payload.title}`, {
+      body: payload.message,
+      icon: '/icon.png',
+      tag: `todo-${payload.todo_id}`, // Prevent duplicates
+      requireInteraction: false,
+      silent: false
     });
-
+    
     notification.onclick = () => {
       window.focus();
+      // Scroll to todo (implementation depends on UI structure)
+      const todoElement = document.querySelector(`[data-todo-id="${payload.todo_id}"]`);
+      if (todoElement) {
+        todoElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       notification.close();
     };
-  };
-
-  // Check for pending notifications
-  const checkNotifications = async () => {
-    if (permission !== 'granted') return;
-
-    try {
-      const response = await fetch('/api/notifications/check');
-      if (!response.ok) return;
-
-      const data = await response.json();
-      
-      if (data.todos && data.todos.length > 0) {
-        data.todos.forEach((todo: Todo) => {
-          showNotification(todo);
-        });
+    
+    // Auto-close after 10 seconds
+    setTimeout(() => notification.close(), 10000);
+  }, []);
+  
+  const startPolling = useCallback((intervalMs: number = 60000) => {
+    if (isPolling) return;
+    
+    setIsPolling(true);
+    
+    const poll = async () => {
+      try {
+        const response = await fetch('/api/notifications/check');
+        if (response.ok) {
+          const data = await response.json();
+          data.notifications.forEach((notif: NotificationPayload) => {
+            showNotification(notif);
+          });
+        }
+      } catch (error) {
+        console.error('Notification polling error:', error);
       }
-    } catch (error) {
-      console.error('Error checking notifications:', error);
-    }
-  };
-
-  // Start polling when granted
-  useEffect(() => {
-    if (permission !== 'granted' || !isPolling) return;
-
-    // Check immediately
-    checkNotifications();
-
-    // Then poll every 60 seconds
-    const intervalId = setInterval(checkNotifications, POLL_INTERVAL);
-
-    return () => clearInterval(intervalId);
-  }, [permission, isPolling]);
-
+    };
+    
+    // Poll immediately, then every interval
+    poll();
+    const intervalId = setInterval(poll, intervalMs);
+    
+    return () => {
+      clearInterval(intervalId);
+      setIsPolling(false);
+    };
+  }, [isPolling, showNotification]);
+  
   return {
     permission,
     requestPermission,
-    isPolling,
-    checkNotifications,
+    showNotification,
+    startPolling,
+    isSupported: typeof window !== 'undefined' && 'Notification' in window
   };
 }
