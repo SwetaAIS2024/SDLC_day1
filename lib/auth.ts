@@ -1,8 +1,4 @@
-/**
- * Authentication and Session Management
- * Full WebAuthn implementation will be in PRP-11
- * This is a stub for Todo CRUD operations (PRP-01)
- */
+import { cookies } from 'next/headers';
 
 export interface Session {
   userId: number;
@@ -10,39 +6,58 @@ export interface Session {
 }
 
 /**
- * Get current session from JWT cookie
- * TODO: Implement full JWT verification in PRP-11
- * For now, returns a mock session for development
+ * Get current session from cookies
+ * For now, this is a simplified version for development
+ * In production, this would validate JWT tokens
+ * 
+ * DEV MODE: Returns default user session if no cookie exists
  */
 export async function getSession(): Promise<Session | null> {
-  // In production, this will:
-  // 1. Read 'session' cookie
-  // 2. Verify JWT signature
-  // 3. Check expiration
-  // 4. Return decoded session data
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get('session');
   
-  // For PRP-01 development, return mock session
-  // This allows testing CRUD operations before auth is implemented
-  return {
-    userId: 1,
-    username: 'dev-user',
-  };
+  if (!sessionCookie) {
+    // DEV MODE: Auto-create session for testing CRUD operations
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        userId: 1,
+        username: 'dev-user'
+      };
+    }
+    return null;
+  }
+
+  try {
+    // In a real implementation, this would validate and decode a JWT
+    // For now, we'll parse a simple JSON structure
+    const session = JSON.parse(sessionCookie.value);
+    return session as Session;
+  } catch (error) {
+    return null;
+  }
 }
 
 /**
- * Create session and set JWT cookie
- * TODO: Implement in PRP-11
+ * Create a new session
+ * For development purposes - in production this would create a JWT
  */
 export async function createSession(userId: number, username: string): Promise<void> {
-  // Will implement JWT creation and cookie setting in PRP-11
-  throw new Error('createSession not yet implemented - see PRP-11');
+  const cookieStore = await cookies();
+  const session: Session = { userId, username };
+  
+  cookieStore.set('session', JSON.stringify(session), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+    path: '/',
+  });
 }
 
 /**
- * Clear session cookie
- * TODO: Implement in PRP-11
+ * Delete current session
  */
-export async function clearSession(): Promise<void> {
-  // Will implement cookie clearing in PRP-11
-  throw new Error('clearSession not yet implemented - see PRP-11');
+export async function deleteSession(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete('session');
 }
