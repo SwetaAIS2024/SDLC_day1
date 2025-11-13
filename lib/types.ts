@@ -79,4 +79,5 @@ export interface UpdateTodoInput {
   due_date?: string | null;
   recurrence_pattern?: RecurrencePattern | null;
   reminder_minutes?: number | null;
+  last_notification_sent?: string | null;
 }

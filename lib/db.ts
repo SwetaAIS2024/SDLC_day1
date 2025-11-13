@@ -195,6 +195,10 @@ export const todoDB = {
       updates.push('reminder_minutes = ?');
       values.push(input.reminder_minutes);
     }
+    if (input.last_notification_sent !== undefined) {
+      updates.push('last_notification_sent = ?');
+      values.push(input.last_notification_sent);
+    }
 
     if (updates.length === 0) return todo;
 

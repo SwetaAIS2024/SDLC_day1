@@ -6,20 +6,27 @@ import { formatSingaporeDate } from '@/lib/timezone';
 import { PriorityBadge } from '@/components/PriorityBadge';
 import { PrioritySelector } from '@/components/PrioritySelector';
 import { PriorityFilter } from '@/components/PriorityFilter';
+import { ReminderSelector } from '@/components/ReminderSelector';
+import { useNotifications } from '@/lib/hooks/useNotifications';
 
 export default function TodosPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [newPriority, setNewPriority] = useState<Priority>('medium');
+  const [newReminderMinutes, setNewReminderMinutes] = useState<number | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
   const [priorityCounts, setPriorityCounts] = useState({ high: 0, medium: 0, low: 0 });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editPriority, setEditPriority] = useState<Priority>('medium');
+  const [editReminderMinutes, setEditReminderMinutes] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Notifications hook
+  const { permission, requestPermission } = useNotifications();
 
   // Fetch todos on mount
   useEffect(() => {
@@ -71,6 +78,14 @@ export default function TodosPage() {
     ? todos 
     : todos.filter(t => t.priority === priorityFilter);
 
+  // Helper function to format reminder text
+  const getReminderText = (minutes: number): string => {
+    if (minutes < 60) return `${minutes} min before`;
+    if (minutes < 1440) return `${minutes / 60} hr before`;
+    if (minutes < 10080) return `${minutes / 1440} day before`;
+    return `${minutes / 10080} week before`;
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -83,7 +98,7 @@ export default function TodosPage() {
       priority: newPriority,
       due_date: newDueDate || null,
       recurrence_pattern: null,
-      reminder_minutes: null,
+      reminder_minutes: newReminderMinutes,
       last_notification_sent: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -94,6 +109,7 @@ export default function TodosPage() {
     setNewTitle('');
     setNewDueDate('');
     setNewPriority('medium');
+    setNewReminderMinutes(null);
 
     try {
       const response = await fetch('/api/todos', {
@@ -103,6 +119,7 @@ export default function TodosPage() {
           title: newTitle.trim(),
           priority: newPriority,
           due_date: newDueDate || null,
+          reminder_minutes: newReminderMinutes,
         }),
       });
 
@@ -152,8 +169,20 @@ export default function TodosPage() {
   const handleEdit = (todo: Todo) => {
     setEditingId(todo.id);
     setEditTitle(todo.title);
-    setEditDueDate(todo.due_date || '');
+    // Convert ISO date to datetime-local format (YYYY-MM-DDTHH:mm)
+    if (todo.due_date) {
+      const date = new Date(todo.due_date);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      setEditDueDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+    } else {
+      setEditDueDate('');
+    }
     setEditPriority(todo.priority || 'medium');
+    setEditReminderMinutes(todo.reminder_minutes);
   };
 
   const handleSaveEdit = async (todo: Todo) => {
@@ -164,7 +193,7 @@ export default function TodosPage() {
     // Optimistic update
     setTodos(todos => todos.map(t =>
       t.id === todo.id 
-        ? { ...t, title: editTitle.trim(), due_date: editDueDate || null, priority: editPriority } 
+        ? { ...t, title: editTitle.trim(), due_date: editDueDate || null, priority: editPriority, reminder_minutes: editReminderMinutes } 
         : t
     ).sort(sortByPriority));
     setEditingId(null);
@@ -177,6 +206,7 @@ export default function TodosPage() {
           title: editTitle.trim(),
           priority: editPriority,
           due_date: editDueDate || null,
+          reminder_minutes: editReminderMinutes,
         }),
       });
 
@@ -235,6 +265,28 @@ export default function TodosPage() {
         counts={priorityCounts}
       />
 
+      {/* Notification Permission Button */}
+      <div className="mb-4">
+        {permission === 'default' && (
+          <button
+            onClick={requestPermission}
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          >
+            🔔 Enable Notifications
+          </button>
+        )}
+        {permission === 'granted' && (
+          <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg inline-block">
+            ✅ Notifications Enabled
+          </div>
+        )}
+        {permission === 'denied' && (
+          <div className="px-4 py-2 bg-red-100 text-red-800 rounded-lg inline-block">
+            ❌ Notifications Blocked (Enable in browser settings)
+          </div>
+        )}
+      </div>
+
       {/* Create Todo Form */}
       <form onSubmit={handleCreate} className="mb-6 flex gap-2">
         <input
@@ -251,10 +303,14 @@ export default function TodosPage() {
           onChange={setNewPriority}
         />
         <input
-          type="date"
+          type="datetime-local"
           value={newDueDate}
           onChange={(e) => setNewDueDate(e.target.value)}
           className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <ReminderSelector
+          value={newReminderMinutes}
+          onChange={setNewReminderMinutes}
         />
         <button
           type="submit"
@@ -309,10 +365,14 @@ export default function TodosPage() {
                     onChange={setEditPriority}
                   />
                   <input
-                    type="date"
+                    type="datetime-local"
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
                     className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <ReminderSelector
+                    value={editReminderMinutes}
+                    onChange={setEditReminderMinutes}
                   />
                   <button
                     onClick={() => handleSaveEdit(todo)}
@@ -340,10 +400,15 @@ export default function TodosPage() {
                     <p className={`text-base ${todo.completed_at ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                       {todo.title}
                     </p>
-                    {/* Due Date */}
+                    {/* Due Date and Reminder */}
                     {todo.due_date && (
                       <p className="text-sm text-gray-500 mt-1">
-                        Due: {formatSingaporeDate(todo.due_date, 'MMM dd, yyyy')}
+                        Due: {formatSingaporeDate(todo.due_date, 'MMM dd, yyyy HH:mm')}
+                        {todo.reminder_minutes && (
+                          <span className="ml-2 text-orange-500">
+                            🔔 {getReminderText(todo.reminder_minutes)}
+                          </span>
+                        )}
                       </p>
                     )}
                   </div>
