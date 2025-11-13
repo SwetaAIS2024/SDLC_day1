@@ -1,10 +1,10 @@
 in the PRPs folder, generate PRP file with below requirements
 
-**[05-subtasks-progress.md](05-subtasks-progress.md)** - Subtasks & Progress Tracking
-   - Checklist functionality
-   - Visual progress bars
-   - Position management
-   - Cascade delete behavior
+**[08-search-filtering.md](08-search-filtering.md)** - Search & Filtering
+   - Real-time text search
+   - Advanced search (title + tags)
+   - Multi-criteria filtering
+   - Client-side performance
 
 with following consistent structure
 - **Feature Overview** - High-level description
@@ -18,7 +18,7 @@ with following consistent structure
 - **Out of Scope** - Explicitly excluded features
 - **Success Metrics** - Measurable outcomes
 
-
+do not do any analysis, just focus on the exact prompt and generate PRP just for this feature
 ----
 
 you are a senior developer. Use this PRP <filename> to create the code base for <function>
