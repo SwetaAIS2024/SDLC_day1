@@ -15,6 +15,22 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS authenticators (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    counter INTEGER NOT NULL DEFAULT 0,
+    transports TEXT,
+    device_name TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_used_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_authenticators_user_id ON authenticators(user_id);
+  CREATE INDEX IF NOT EXISTS idx_authenticators_credential_id ON authenticators(credential_id);
+
   CREATE TABLE IF NOT EXISTS todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -51,6 +67,61 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_subtasks_todo_id ON subtasks(todo_id);
+
+  CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '#3B82F6',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, name)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id);
+
+  CREATE TABLE IF NOT EXISTS todo_tags (
+    todo_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (todo_id, tag_id),
+    FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_todo_tags_todo_id ON todo_tags(todo_id);
+  CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id ON todo_tags(tag_id);
+
+  CREATE TABLE IF NOT EXISTS templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
+    recurrence_pattern TEXT CHECK(recurrence_pattern IN ('daily', 'weekly', 'monthly', 'yearly')),
+    due_date_offset_days INTEGER NOT NULL DEFAULT 0,
+    reminder_minutes INTEGER,
+    subtasks TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_templates_user_id ON templates(user_id);
+  CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category);
+
+  CREATE TABLE IF NOT EXISTS holidays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    date TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    is_recurring INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
+  CREATE INDEX IF NOT EXISTS idx_holidays_year ON holidays(year);
 `);
 
 // Migrations are handled inline - no separate migration needed as schema uses IF NOT EXISTS
@@ -121,6 +192,35 @@ try {
 
 // Re-export types from types.ts for convenience
 export type { Priority, RecurrencePattern, ReminderMinutes, NotificationPayload } from './types';
+
+// User interface
+export interface User {
+  id: number;
+  username: string;
+  created_at: string;
+}
+
+// Authenticator interfaces for WebAuthn
+export interface Authenticator {
+  id: number;
+  user_id: number;
+  credential_id: string;
+  public_key: string;
+  counter: number;
+  transports: string | null;
+  device_name: string | null;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface AuthenticatorInput {
+  user_id: number;
+  credential_id: string;
+  public_key: string;
+  counter: number;
+  transports?: string[];
+  device_name?: string;
+}
 
 // TypeScript Interfaces
 export interface Tag {
@@ -1086,6 +1186,50 @@ export const userDB = {
     const stmt = db.prepare(`SELECT id, username FROM users WHERE username = ?`);
     const row = stmt.get(username) as any;
     return row || null;
+  },
+};
+
+// Authenticator operations
+export const authenticatorDB = {
+  create: (input: AuthenticatorInput): number => {
+    const stmt = db.prepare(`
+      INSERT INTO authenticators (
+        user_id, credential_id, public_key, counter, transports, device_name
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      input.user_id,
+      input.credential_id,
+      input.public_key,
+      input.counter,
+      input.transports ? JSON.stringify(input.transports) : null,
+      input.device_name || null
+    );
+    return result.lastInsertRowid as number;
+  },
+
+  getByCredentialId: (credentialId: string): Authenticator | null => {
+    const stmt = db.prepare('SELECT * FROM authenticators WHERE credential_id = ?');
+    return stmt.get(credentialId) as Authenticator | null;
+  },
+
+  getByUserId: (userId: number): Authenticator[] => {
+    const stmt = db.prepare('SELECT * FROM authenticators WHERE user_id = ?');
+    return stmt.all(userId) as Authenticator[];
+  },
+
+  updateCounter: (credentialId: string, counter: number): void => {
+    const stmt = db.prepare(`
+      UPDATE authenticators 
+      SET counter = ?, last_used_at = datetime('now')
+      WHERE credential_id = ?
+    `);
+    stmt.run(counter, credentialId);
+  },
+
+  delete: (id: number): void => {
+    const stmt = db.prepare('DELETE FROM authenticators WHERE id = ?');
+    stmt.run(id);
   },
 };
 
