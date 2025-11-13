@@ -48,28 +48,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1e2a3a] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-6 transition-colors duration-200">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="bg-[#2d3f54] rounded-lg shadow-2xl p-8 border border-gray-700/50">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl dark:shadow-slate-900/50 p-10 border border-gray-100 dark:border-slate-700 transition-colors duration-200">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">Todo App</h1>
-            <p className="text-gray-400 text-sm">Sign in with your passkey</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3 transition-colors duration-200">Todo App</h1>
+            <p className="text-gray-600 dark:text-slate-400 text-base transition-colors duration-200">Sign in with your passkey</p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-900/50 text-red-200 rounded text-sm border border-red-700">
+            <div className="mb-6 p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm border border-red-200 dark:border-red-800 transition-colors duration-200">
               {error}
             </div>
           )}
 
           {/* Form */}
-          <form onSubmit={handlePasskeyLogin} className="space-y-4">
+          <form onSubmit={handlePasskeyLogin} className="space-y-5">
             {/* Username Input */}
             <div>
-              <label className="block text-gray-300 text-sm mb-2">
+              <label className="block text-gray-700 dark:text-slate-300 text-sm font-medium mb-2 transition-colors duration-200">
                 Username
               </label>
               <input
@@ -77,7 +77,7 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
-                className="w-full px-4 py-2.5 bg-[#1e2a3a] border border-gray-600/50 rounded text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white text-base placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200"
                 disabled={loading}
               />
             </div>
@@ -86,27 +86,27 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !username.trim()}
-              className="w-full py-2.5 bg-blue-600 text-white rounded font-medium hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-medium text-base hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
             >
               {loading ? 'Signing in...' : 'Sign in with Passkey'}
             </button>
 
             {/* Register Link */}
-            <div className="text-center">
+            <div className="text-center pt-2">
               <button
                 type="button"
                 onClick={handleRegister}
-                className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-200"
               >
-                Don't have an account? Register
+                Don&apos;t have an account? <span className="underline">Register</span>
               </button>
             </div>
           </form>
 
-          {/* Info Text */}
-          <div className="mt-6 pt-6 border-t border-gray-700/50">
-            <p className="text-gray-400 text-xs text-center leading-relaxed">
-              Passkeys use your device's biometrics (fingerprint, face recognition) or PIN for secure authentication. No passwords needed!
+          {/* Info Box */}
+          <div className="mt-8 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-lg transition-colors duration-200">
+            <p className="text-gray-600 dark:text-slate-300 text-sm leading-relaxed transition-colors duration-200">
+              <span className="font-semibold text-gray-800 dark:text-slate-200">Passkeys</span> use your device&apos;s biometrics (fingerprint, face recognition) or PIN for secure authentication. No passwords needed!
             </p>
           </div>
         </div>

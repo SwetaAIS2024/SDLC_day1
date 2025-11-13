@@ -3,4 +3,12 @@
 body {
   background-color: #E8EDF2;
   color: #111827;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #0f172a;
+    color: #e2e8f0;
+  }
 }
