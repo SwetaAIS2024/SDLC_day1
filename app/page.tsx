@@ -1,267 +1,260 @@
-/**
- * Main Todo Page Component
- * Per copilot-instructions.md: Monolithic client component (~2200 lines in full app)
- * This implementation covers CRUD operations from PRP-01
- */
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Todo, RecurrencePattern } from '@/lib/db';
-import { formatSingaporeDate, getSingaporeNow } from '@/lib/timezone';
-import { RecurrenceSelector } from '@/components/RecurrenceSelector';
-import { RecurrenceIcon } from '@/components/RecurrenceIndicator';
+import { Todo, Priority } from '@/lib/types';
+import { formatSingaporeDate } from '@/lib/timezone';
+import { PriorityBadge } from '@/components/PriorityBadge';
+import { PrioritySelector } from '@/components/PrioritySelector';
+import { PriorityFilter } from '@/components/PriorityFilter';
 
-export default function TodoPage() {
-  // State management
+export default function TodosPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [newTodoTitle, setNewTodoTitle] = useState('');
-  const [newTodoDueDate, setNewTodoDueDate] = useState('');
-  const [newRecurrencePattern, setNewRecurrencePattern] = useState<RecurrencePattern | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDueDate, setNewDueDate] = useState('');
+  const [newPriority, setNewPriority] = useState<Priority>('medium');
+  const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
+  const [priorityCounts, setPriorityCounts] = useState({ high: 0, medium: 0, low: 0 });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editPriority, setEditPriority] = useState<Priority>('medium');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Fetch todos on mount
   useEffect(() => {
     fetchTodos();
+    fetchPriorityCounts();
   }, []);
 
   const fetchTodos = async () => {
     try {
-      setLoading(true);
-      const res = await fetch('/api/todos');
-      if (!res.ok) throw new Error('Failed to fetch todos');
-      const data = await res.json();
-      setTodos(data.todos);
-      setError(null);
+      const response = await fetch('/api/todos');
+      if (!response.ok) throw new Error('Failed to fetch todos');
+      const data = await response.json();
+      setTodos(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError('Failed to load todos');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Create todo with optimistic update pattern
-  const handleCreateTodo = async (e: React.FormEvent) => {
+  const fetchPriorityCounts = async () => {
+    try {
+      const response = await fetch('/api/todos/priority-counts');
+      if (!response.ok) throw new Error('Failed to fetch counts');
+      const data = await response.json();
+      setPriorityCounts(data);
+    } catch (err) {
+      console.error('Error fetching priority counts:', err);
+    }
+  };
+
+  // Sorting function for priority
+  const sortByPriority = (a: Todo, b: Todo) => {
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    const aPriority = priorityOrder[a.priority];
+    const bPriority = priorityOrder[b.priority];
+    
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+    
+    // Same priority: sort by creation date (newest first)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  };
+
+  // Filter todos by priority
+  const filteredTodos = priorityFilter === 'all' 
+    ? todos 
+    : todos.filter(t => t.priority === priorityFilter);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTodoTitle.trim()) {
-      setError('Title is required');
-      return;
-    }
+    if (!newTitle.trim()) return;
 
-    if (newTodoTitle.length > 500) {
-      setError('Title must be 500 characters or less');
-      return;
-    }
-
-    const tempId = Date.now(); // Temporary ID for optimistic update
     const optimisticTodo: Todo = {
-      id: tempId,
-      user_id: 0, // Will be set by server
-      title: newTodoTitle.trim(),
-      completed_at: null,
-      due_date: newTodoDueDate || null,
-      created_at: getSingaporeNow().toISOString(),
-      updated_at: getSingaporeNow().toISOString(),
-      priority: null,
-      recurrence_pattern: newRecurrencePattern,
-      reminder_minutes: null,
-      last_notification_sent: null,
+      id: Date.now(), // Temporary ID
+      user_id: 0,
+      title: newTitle.trim(),
+      completed: false,
+      priority: newPriority,
+      due_date: newDueDate || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
-    // Optimistic update - show immediately
-    setTodos((prev) => [optimisticTodo, ...prev]);
-    setNewTodoTitle('');
-    setNewTodoDueDate('');
-    setNewRecurrencePattern(null);
-    setError(null);
+    // Optimistic update with proper sorting
+    setTodos([optimisticTodo, ...todos].sort(sortByPriority));
+    setNewTitle('');
+    setNewDueDate('');
+    setNewPriority('medium');
 
     try {
-      const res = await fetch('/api/todos', {
+      const response = await fetch('/api/todos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: newTodoTitle.trim(),
-          due_date: newTodoDueDate || null,
-          recurrence_pattern: newRecurrencePattern,
+          title: newTitle.trim(),
+          priority: newPriority,
+          due_date: newDueDate || null,
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to create todo');
-      }
+      if (!response.ok) throw new Error('Failed to create todo');
+      const createdTodo = await response.json();
 
-      const createdTodo: Todo = await res.json();
-
-      // Replace optimistic todo with real server-confirmed one
-      setTodos((prev) => prev.map((t) => (t.id === tempId ? createdTodo : t)));
+      // Replace optimistic todo with real one
+      setTodos(todos => todos.map(t => t.id === optimisticTodo.id ? createdTodo : t));
+      fetchPriorityCounts();
     } catch (err) {
-      // Rollback optimistic update on error
-      setTodos((prev) => prev.filter((t) => t.id !== tempId));
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      // Rollback optimistic update
+      setTodos(todos => todos.filter(t => t.id !== optimisticTodo.id));
+      setError('Failed to create todo');
+      console.error(err);
     }
   };
 
-  // Toggle completion with optimistic update
   const handleToggleComplete = async (todo: Todo) => {
-    const newCompletedAt = todo.completed_at ? null : getSingaporeNow().toISOString();
+    const newCompleted = !todo.completed;
 
     // Optimistic update
-    setTodos((prev) =>
-      prev.map((t) => (t.id === todo.id ? { ...t, completed_at: newCompletedAt } : t))
-    );
+    setTodos(todos => todos.map(t =>
+      t.id === todo.id ? { ...t, completed: newCompleted } : t
+    ));
 
     try {
-      const res = await fetch(`/api/todos/${todo.id}`, {
+      const response = await fetch(`/api/todos/${todo.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed_at: newCompletedAt }),
+        body: JSON.stringify({ completed: newCompleted }),
       });
 
-      if (!res.ok) throw new Error('Failed to update todo');
-
-      const responseData = await res.json();
-      
-      // Check if this was a recurring todo completion
-      if (responseData.next_instance) {
-        // Replace completed todo and add next instance
-        setTodos((prev) => {
-          const filtered = prev.map((t) => (t.id === todo.id ? responseData.completed_todo : t));
-          return [responseData.next_instance, ...filtered];
-        });
-        
-        // Show success message with next due date
-        const nextDueDate = formatSingaporeDate(responseData.next_instance.due_date);
-        alert(`✅ ${responseData.message}\n\nNext occurrence created with due date: ${nextDueDate}`);
-      } else {
-        // Regular todo - just update it
-        setTodos((prev) => prev.map((t) => (t.id === todo.id ? responseData : t)));
-      }
+      if (!response.ok) throw new Error('Failed to update todo');
+      const updatedTodo = await response.json();
+      setTodos(todos => todos.map(t => t.id === todo.id ? updatedTodo : t));
     } catch (err) {
-      // Rollback on error
-      setTodos((prev) =>
-        prev.map((t) => (t.id === todo.id ? { ...t, completed_at: todo.completed_at } : t))
-      );
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      // Rollback optimistic update
+      setTodos(todos => todos.map(t =>
+        t.id === todo.id ? { ...t, completed: !newCompleted } : t
+      ));
+      setError('Failed to update todo');
+      console.error(err);
     }
   };
 
-  // Start editing
-  const handleStartEdit = (todo: Todo) => {
+  const handleEdit = (todo: Todo) => {
     setEditingId(todo.id);
     setEditTitle(todo.title);
     setEditDueDate(todo.due_date || '');
+    setEditPriority(todo.priority);
   };
 
-  // Save edit with optimistic update
-  const handleSaveEdit = async (todoId: number) => {
-    if (!editTitle.trim()) {
-      setError('Title is required');
-      return;
-    }
+  const handleSaveEdit = async (todo: Todo) => {
+    if (!editTitle.trim()) return;
 
-    if (editTitle.length > 500) {
-      setError('Title must be 500 characters or less');
-      return;
-    }
-
-    const originalTodo = todos.find((t) => t.id === todoId);
+    const originalTodo = todo;
 
     // Optimistic update
-    setTodos((prev) =>
-      prev.map((t) =>
-        t.id === todoId ? { ...t, title: editTitle.trim(), due_date: editDueDate || null } : t
-      )
-    );
+    setTodos(todos => todos.map(t =>
+      t.id === todo.id 
+        ? { ...t, title: editTitle.trim(), due_date: editDueDate || null, priority: editPriority } 
+        : t
+    ).sort(sortByPriority));
     setEditingId(null);
 
     try {
-      const res = await fetch(`/api/todos/${todoId}`, {
+      const response = await fetch(`/api/todos/${todo.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: editTitle.trim(),
+          priority: editPriority,
           due_date: editDueDate || null,
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to update todo');
-
-      const updatedTodo: Todo = await res.json();
-      setTodos((prev) => prev.map((t) => (t.id === todoId ? updatedTodo : t)));
-      setError(null);
+      if (!response.ok) throw new Error('Failed to update todo');
+      const updatedTodo = await response.json();
+      setTodos(todos => todos.map(t => t.id === todo.id ? updatedTodo : t).sort(sortByPriority));
+      fetchPriorityCounts();
     } catch (err) {
-      // Rollback on error
-      if (originalTodo) {
-        setTodos((prev) => prev.map((t) => (t.id === todoId ? originalTodo : t)));
-      }
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      // Rollback optimistic update
+      setTodos(todos => todos.map(t => t.id === todo.id ? originalTodo : t));
+      setEditingId(todo.id);
+      setError('Failed to update todo');
+      console.error(err);
     }
   };
 
-  // Delete todo with optimistic update
-  const handleDelete = async (todoId: number) => {
+  const handleDelete = async (todo: Todo) => {
     if (!confirm('Are you sure you want to delete this todo?')) return;
 
     const originalTodos = [...todos];
 
-    // Optimistic update - remove immediately
-    setTodos((prev) => prev.filter((t) => t.id !== todoId));
+    // Optimistic update
+    setTodos(todos => todos.filter(t => t.id !== todo.id));
 
     try {
-      const res = await fetch(`/api/todos/${todoId}`, {
+      const response = await fetch(`/api/todos/${todo.id}`, {
         method: 'DELETE',
       });
 
-      if (!res.ok) throw new Error('Failed to delete todo');
-      setError(null);
+      if (!response.ok) throw new Error('Failed to delete todo');
     } catch (err) {
-      // Rollback on error
+      // Rollback optimistic update
       setTodos(originalTodos);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError('Failed to delete todo');
+      console.error(err);
     }
   };
 
   if (loading) return <div className="p-4">Loading todos...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">My Todos</h1>
 
-      {/* Error Display */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
 
+      {/* Priority Filter */}
+      <PriorityFilter
+        selectedPriority={priorityFilter}
+        onFilterChange={setPriorityFilter}
+        counts={priorityCounts}
+      />
+
       {/* Create Todo Form */}
-      <form onSubmit={handleCreateTodo} className="mb-8 flex gap-2">
+      <form onSubmit={handleCreate} className="mb-6 flex gap-2">
         <input
           type="text"
-          value={newTodoTitle}
-          onChange={(e) => setNewTodoTitle(e.target.value)}
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
           placeholder="What needs to be done?"
           className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           maxLength={500}
         />
+        {/* Priority Selector */}
+        <PrioritySelector
+          value={newPriority}
+          onChange={setNewPriority}
+        />
         <input
           type="date"
-          value={newTodoDueDate}
-          onChange={(e) => setNewTodoDueDate(e.target.value)}
+          value={newDueDate}
+          onChange={(e) => setNewDueDate(e.target.value)}
           className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <RecurrenceSelector
-          value={newRecurrencePattern}
-          onChange={setNewRecurrencePattern}
         />
         <button
           type="submit"
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+          disabled={!newTitle.trim()}
         >
           Add
         </button>
@@ -269,18 +262,23 @@ export default function TodoPage() {
 
       {/* Todo List */}
       <div className="space-y-2">
-        {todos.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No todos yet. Create one above!</p>
+        {filteredTodos.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">
+            {priorityFilter === 'all' 
+              ? 'No todos yet. Create one above!' 
+              : `No ${priorityFilter} priority todos.`
+            }
+          </p>
         ) : (
-          todos.map((todo) => (
+          filteredTodos.map(todo => (
             <div
               key={todo.id}
-              className="flex items-center gap-3 p-4 bg-white border rounded-lg hover:shadow-md transition"
+              className="flex items-center gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition"
             >
               {/* Checkbox */}
               <input
                 type="checkbox"
-                checked={!!todo.completed_at}
+                checked={todo.completed}
                 onChange={() => handleToggleComplete(todo)}
                 className="w-5 h-5 cursor-pointer"
               />
@@ -292,24 +290,29 @@ export default function TodoPage() {
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="flex-1 px-2 py-1 border rounded"
+                    className="flex-1 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     maxLength={500}
+                  />
+                  {/* Priority Selector in Edit Mode */}
+                  <PrioritySelector
+                    value={editPriority}
+                    onChange={setEditPriority}
                   />
                   <input
                     type="date"
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
-                    className="px-2 py-1 border rounded"
+                    className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
-                    onClick={() => handleSaveEdit(todo.id)}
+                    onClick={() => handleSaveEdit(todo)}
                     className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
                   >
                     Save
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
-                    className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
                   >
                     Cancel
                   </button>
@@ -317,29 +320,28 @@ export default function TodoPage() {
               ) : (
                 <>
                   <div className="flex-1">
-                    <p className={`${todo.completed_at ? 'line-through text-gray-500' : ''}`}>
-                      {todo.title}
-                      {todo.recurrence_pattern && (
-                        <span className="ml-2">
-                          <RecurrenceIcon pattern={todo.recurrence_pattern} />
-                        </span>
-                      )}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      {/* Priority Badge */}
+                      <PriorityBadge priority={todo.priority} />
+                      <p className={`${todo.completed ? 'line-through text-gray-400' : ''}`}>
+                        {todo.title}
+                      </p>
+                    </div>
                     {todo.due_date && (
                       <p className="text-sm text-gray-500">
-                        Due: {formatSingaporeDate(todo.due_date, 'date')}
+                        Due: {formatSingaporeDate(todo.due_date, 'MMM dd, yyyy')}
                       </p>
                     )}
                   </div>
                   <button
-                    onClick={() => handleStartEdit(todo)}
-                    className="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded"
+                    onClick={() => handleEdit(todo)}
+                    className="px-3 py-1 text-blue-500 hover:bg-blue-50 rounded"
                   >
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(todo.id)}
-                    className="px-3 py-1 text-red-600 hover:bg-red-50 rounded"
+                    onClick={() => handleDelete(todo)}
+                    className="px-3 py-1 text-red-500 hover:bg-red-50 rounded"
                   >
                     Delete
                   </button>
