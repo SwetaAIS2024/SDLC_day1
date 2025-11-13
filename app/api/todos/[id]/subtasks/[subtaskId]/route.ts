@@ -74,7 +74,7 @@ export async function PUT(
 
   // Update subtask
   try {
-    const updatedSubtask = subtaskDB.update(subtaskIdNum, {
+    const updatedSubtask = subtaskDB.update(session.userId, todoId, subtaskIdNum, {
       title: title !== undefined ? title.trim() : undefined,
       completed,
       position
@@ -130,7 +130,7 @@ export async function DELETE(
 
   // Delete subtask
   try {
-    const deleted = subtaskDB.delete(subtaskIdNum);
+    const deleted = subtaskDB.delete(session.userId, todoId, subtaskIdNum);
     
     if (!deleted) {
       return NextResponse.json({ error: 'Failed to delete subtask' }, { status: 500 });

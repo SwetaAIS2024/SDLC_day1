@@ -34,7 +34,7 @@ export async function GET(
   }
 
   // Get subtasks
-  const subtasks = subtaskDB.getByTodoId(todoId);
+  const subtasks = subtaskDB.getAllForTodo(session.userId, todoId);
 
   return NextResponse.json({ subtasks }, { status: 200 });
 }
@@ -91,10 +91,8 @@ export async function POST(
 
   // Create subtask
   try {
-    const subtask = subtaskDB.create({
-      todo_id: todoId,
-      title: title.trim(),
-      position
+    const subtask = subtaskDB.create(session.userId, todoId, {
+      title: title.trim()
     });
 
     return NextResponse.json({ subtask }, { status: 201 });
