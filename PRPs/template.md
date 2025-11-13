@@ -1,10 +1,10 @@
 in the PRPs folder, generate PRP file with below requirements
 
-**[08-search-filtering.md](08-search-filtering.md)** - Search & Filtering
-   - Real-time text search
-   - Advanced search (title + tags)
-   - Multi-criteria filtering
-   - Client-side performance
+**[10-calendar-view.md](10-calendar-view.md)** - Calendar View
+    - Monthly calendar display
+    - Singapore public holidays
+    - Todo visualization by due date
+    - Month navigation
 
 with following consistent structure
 - **Feature Overview** - High-level description
