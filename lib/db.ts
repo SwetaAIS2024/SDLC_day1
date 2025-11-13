@@ -77,6 +77,17 @@ db.exec(`
 // Create index for priority-based queries
 db.exec(`CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority)`);
 
+// Migration: Add updated_at column to subtasks table if it doesn't exist
+try {
+  db.exec(`ALTER TABLE subtasks ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))`);
+} catch (error: any) {
+  // Column already exists or other error - ignore
+  if (!error.message?.includes('duplicate column name')) {
+    // Log unexpected errors but don't crash
+    console.error('Migration warning:', error.message);
+  }
+}
+
 // DEV MODE: Insert default user for testing if none exists
 if (process.env.NODE_ENV === 'development') {
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
