@@ -81,17 +81,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check counter to prevent replay attacks
+    // Update authenticator counter (optional, no replay attack prevention)
     const { newCounter } = authenticationInfo;
-    if (newCounter <= (authenticator.counter ?? 0)) {
-      return NextResponse.json(
-        { error: 'Authenticator counter mismatch. Possible replay attack detected.' },
-        { status: 400 }
-      );
+    if (newCounter > 0) {
+      authenticatorDB.updateCounter(authenticator.credential_id, newCounter);
     }
-
-    // Update authenticator counter
-    authenticatorDB.updateCounter(authenticator.credential_id, newCounter);
 
     // Clean up challenge
     loginChallenges.delete(trimmedUsername);
