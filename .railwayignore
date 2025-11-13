@@ -1,0 +1,37 @@
+# Development files
+node_modules
+.git
+.github
+
+# Test files
+tests
+*.spec.ts
+*.test.ts
+
+# Documentation
+*.md
+!README.md
+
+# Local database
+todos.db
+todos.db-journal
+
+# Environment files
+.env.local
+.env*.local
+
+# Build artifacts
+.next
+out
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
