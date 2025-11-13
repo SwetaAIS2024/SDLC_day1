@@ -78,6 +78,36 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_todo_tags_todo_id ON todo_tags(todo_id);
   CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id ON todo_tags(tag_id);
+
+  CREATE TABLE IF NOT EXISTS templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL CHECK(length(name) <= 200 AND length(name) > 0),
+    description TEXT,
+    category TEXT CHECK(length(category) <= 50),
+    priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
+    recurrence_pattern TEXT CHECK(recurrence_pattern IN ('daily', 'weekly', 'monthly', 'yearly')),
+    reminder_minutes INTEGER,
+    due_date_offset_days INTEGER CHECK(due_date_offset_days >= 0),
+    subtasks_json TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_templates_user_id ON templates(user_id);
+  CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category);
+
+  CREATE TABLE IF NOT EXISTS template_tags (
+    template_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (template_id, tag_id),
+    FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_template_tags_template_id ON template_tags(template_id);
+  CREATE INDEX IF NOT EXISTS idx_template_tags_tag_id ON template_tags(tag_id);
 `);
 
 // Add priority column to existing tables (migration)
@@ -197,6 +227,30 @@ export interface TodoWithSubtasks extends Todo {
   subtasks: Subtask[];
   progress: number; // 0-100 percentage
   tags?: TagResponse[];
+}
+
+// Template System Interfaces
+export interface Template {
+  id: number;
+  user_id: number;
+  name: string;
+  description: string | null;
+  category: string | null;
+  priority: Priority;
+  recurrence_pattern: RecurrencePattern | null;
+  reminder_minutes: ReminderMinutes;
+  due_date_offset_days: number | null;
+  subtasks_json: string | null; // JSON string
+  created_at: string;
+}
+
+export interface TemplateWithTags extends Template {
+  tags: TagResponse[];
+}
+
+export interface TemplateSubtask {
+  title: string;
+  position: number;
 }
 
 export interface TodoResponse {
@@ -824,6 +878,186 @@ export const todoTagDB = {
     `);
     const rows = stmt.all(todoId) as any[];
     return rows.map(row => row.tag_id);
+  },
+};
+
+// Template Operations
+export const templateDB = {
+  // Helper function to convert DB row to Template object
+  rowToTemplate: (row: any): Template => {
+    return {
+      id: row.id,
+      user_id: row.user_id,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      priority: row.priority as Priority,
+      recurrence_pattern: row.recurrence_pattern as RecurrencePattern | null,
+      reminder_minutes: row.reminder_minutes,
+      due_date_offset_days: row.due_date_offset_days,
+      subtasks_json: row.subtasks_json,
+      created_at: row.created_at,
+    };
+  },
+
+  // Create a new template
+  create: (template: Omit<Template, 'id' | 'created_at'>): Template | null => {
+    const stmt = db.prepare(`
+      INSERT INTO templates 
+      (user_id, name, description, category, priority, recurrence_pattern, 
+       reminder_minutes, due_date_offset_days, subtasks_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const now = getSingaporeNow().toISO();
+    const result = stmt.run(
+      template.user_id,
+      template.name,
+      template.description,
+      template.category,
+      template.priority,
+      template.recurrence_pattern,
+      template.reminder_minutes,
+      template.due_date_offset_days,
+      template.subtasks_json
+    );
+    
+    return templateDB.getById(template.user_id, Number(result.lastInsertRowid));
+  },
+
+  // Get template by ID
+  getById: (userId: number, templateId: number): Template | null => {
+    const stmt = db.prepare('SELECT * FROM templates WHERE id = ? AND user_id = ?');
+    const row = stmt.get(templateId, userId) as any;
+    return row ? templateDB.rowToTemplate(row) : null;
+  },
+
+  // Get template with tags
+  getByIdWithTags: (userId: number, templateId: number): TemplateWithTags | null => {
+    const template = templateDB.getById(userId, templateId);
+    if (!template) return null;
+
+    const tags = templateDB.getTags(templateId);
+    return {
+      ...template,
+      tags,
+    };
+  },
+
+  // Get all templates for a user
+  getAll: (userId: number, category?: string): Template[] => {
+    if (category) {
+      const stmt = db.prepare(
+        'SELECT * FROM templates WHERE user_id = ? AND category = ? ORDER BY created_at DESC'
+      );
+      const rows = stmt.all(userId, category) as any[];
+      return rows.map(templateDB.rowToTemplate);
+    }
+    
+    const stmt = db.prepare('SELECT * FROM templates WHERE user_id = ? ORDER BY created_at DESC');
+    const rows = stmt.all(userId) as any[];
+    return rows.map(templateDB.rowToTemplate);
+  },
+
+  // Get all templates with tags
+  getAllWithTags: (userId: number, category?: string): TemplateWithTags[] => {
+    const templates = templateDB.getAll(userId, category);
+    return templates.map(template => ({
+      ...template,
+      tags: templateDB.getTags(template.id),
+    }));
+  },
+
+  // Update template
+  update: (userId: number, templateId: number, updates: Partial<Template>): Template | null => {
+    // Filter out fields that shouldn't be updated
+    const allowedFields = [
+      'name', 'description', 'category', 'priority', 
+      'recurrence_pattern', 'reminder_minutes', 'due_date_offset_days', 'subtasks_json'
+    ];
+    const fields = Object.keys(updates).filter(k => allowedFields.includes(k));
+    
+    if (fields.length === 0) {
+      return templateDB.getById(userId, templateId);
+    }
+
+    const setClause = fields.map(f => `${f} = ?`).join(', ');
+    const values = fields.map(f => (updates as any)[f]);
+    
+    const stmt = db.prepare(`UPDATE templates SET ${setClause} WHERE id = ? AND user_id = ?`);
+    stmt.run(...values, templateId, userId);
+    
+    return templateDB.getById(userId, templateId);
+  },
+
+  // Delete template
+  delete: (userId: number, templateId: number): boolean => {
+    const stmt = db.prepare('DELETE FROM templates WHERE id = ? AND user_id = ?');
+    const result = stmt.run(templateId, userId);
+    return result.changes > 0;
+  },
+
+  // Add tag to template
+  addTag: (templateId: number, tagId: number): boolean => {
+    const now = getSingaporeNow().toISO();
+    try {
+      const stmt = db.prepare('INSERT OR IGNORE INTO template_tags (template_id, tag_id, created_at) VALUES (?, ?, ?)');
+      stmt.run(templateId, tagId, now);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  // Remove tag from template
+  removeTag: (templateId: number, tagId: number): boolean => {
+    const stmt = db.prepare('DELETE FROM template_tags WHERE template_id = ? AND tag_id = ?');
+    const result = stmt.run(templateId, tagId);
+    return result.changes > 0;
+  },
+
+  // Get all tags for a template
+  getTags: (templateId: number): TagResponse[] => {
+    const stmt = db.prepare(`
+      SELECT t.id, t.name, t.color, t.created_at, t.updated_at
+      FROM tags t
+      INNER JOIN template_tags tt ON t.id = tt.tag_id
+      WHERE tt.template_id = ?
+      ORDER BY t.name
+    `);
+    const rows = stmt.all(templateId) as any[];
+    return rows;
+  },
+
+  // Set all tags for a template (replace existing)
+  setTags: (templateId: number, tagIds: number[]): boolean => {
+    const removeStmt = db.prepare('DELETE FROM template_tags WHERE template_id = ?');
+    const insertStmt = db.prepare('INSERT INTO template_tags (template_id, tag_id, created_at) VALUES (?, ?, ?)');
+
+    try {
+      db.transaction(() => {
+        // Remove all existing tags
+        removeStmt.run(templateId);
+        
+        // Add new tags
+        const now = getSingaporeNow().toISO();
+        for (const tagId of tagIds) {
+          insertStmt.run(templateId, tagId, now);
+        }
+      })();
+      
+      return true;
+    } catch (e) {
+      console.error('Error setting template tags:', e);
+      return false;
+    }
+  },
+
+  // Get count of templates by user
+  getCount: (userId: number): number => {
+    const stmt = db.prepare('SELECT COUNT(*) as count FROM templates WHERE user_id = ?');
+    const result = stmt.get(userId) as any;
+    return result.count;
   },
 };
 

@@ -140,3 +140,45 @@ export function formatReminderTime(dueDate: string, reminderMinutes: number): st
   const notificationTime = calculateNotificationTime(dueDate, reminderMinutes);
   return notificationTime.toFormat('MMM d, h:mm a') + ' SGT';
 }
+
+/**
+ * Get the start of day (00:00:00) for a given date in Singapore timezone
+ */
+export function startOfDay(date: DateTime): DateTime {
+  return date.startOf('day');
+}
+
+/**
+ * Get the end of day (23:59:59.999) for a given date in Singapore timezone
+ */
+export function endOfDay(date: DateTime): DateTime {
+  return date.endOf('day');
+}
+
+/**
+ * Get the start of week (Monday 00:00:00) for a given date in Singapore timezone
+ */
+export function startOfWeek(date: DateTime): DateTime {
+  return date.startOf('week');
+}
+
+/**
+ * Get the end of week (Sunday 23:59:59.999) for a given date in Singapore timezone
+ */
+export function endOfWeek(date: DateTime): DateTime {
+  return date.endOf('week');
+}
+
+/**
+ * Get the start of month (1st day 00:00:00) for a given date in Singapore timezone
+ */
+export function startOfMonth(date: DateTime): DateTime {
+  return date.startOf('month');
+}
+
+/**
+ * Get the end of month (last day 23:59:59.999) for a given date in Singapore timezone
+ */
+export function endOfMonth(date: DateTime): DateTime {
+  return date.endOf('month');
+}

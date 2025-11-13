@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatSingaporeDate, isPastDue } from '@/lib/timezone';
-import { Priority, RecurrencePattern, ReminderMinutes, PRIORITY_CONFIG, RECURRENCE_CONFIG, REMINDER_CONFIG, TodoWithSubtasks, Subtask, TagResponse } from '@/lib/types';
+import { Priority, RecurrencePattern, ReminderMinutes, PRIORITY_CONFIG, RECURRENCE_CONFIG, REMINDER_CONFIG, TodoWithSubtasks, Subtask, TagResponse, SearchFilters, FilterStatus, FilterDueDateRange } from '@/lib/types';
 import { useNotifications } from '@/lib/hooks/useNotifications';
+import { useDebounce } from '@/lib/hooks/useDebounce';
+import { filterTodos, getDefaultFilters, hasActiveFilters as checkHasActiveFilters, countActiveFilters } from '@/lib/filters';
+import { SearchBar } from '../components/SearchBar';
+import { FilterPanel } from '../components/FilterPanel';
+import { ActiveFilterBadges } from '../components/ActiveFilterBadges';
+import { FilterStats } from '../components/FilterStats';
 
 export default function TodosPage() {
   const router = useRouter();
@@ -42,6 +48,38 @@ export default function TodosPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [editSelectedTagIds, setEditSelectedTagIds] = useState<number[]>([]);
   const [filterTagId, setFilterTagId] = useState<number | null>(null);
+
+  // Template state
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    category: '',
+    due_date_offset_days: 0,
+  });
+
+  // Search & Filter state
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 300);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filters, setFilters] = useState<SearchFilters>(getDefaultFilters());
+
+  // Update filters when debounced search changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, searchTerm: debouncedSearch }));
+  }, [debouncedSearch]);
+
+  // Apply filters to todos using memoization
+  const filteredTodos = useMemo(() => {
+    return filterTodos(todos, filters);
+  }, [todos, filters]);
+
+  const hasActiveFilters = checkHasActiveFilters(filters);
+  const activeFilterCount = countActiveFilters(filters);
 
   const fetchUsername = async () => {
     try {
@@ -538,35 +576,228 @@ export default function TodosPage() {
     fetchTags();
   }, []);
 
+  // Template Functions
+  const fetchTemplates = async () => {
+    try {
+      const url = selectedCategoryFilter === 'all'
+        ? '/api/templates'
+        : `/api/templates?category=${selectedCategoryFilter}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(data.templates);
+      }
+    } catch (err) {
+      console.error('Failed to fetch templates:', err);
+    }
+  };
+
+  const handleSaveAsTemplate = async (todo: TodoWithSubtasks) => {
+    const templateName = prompt('Template name:', todo.title);
+    if (!templateName) return;
+
+    const category = prompt('Category (optional):', '');
+    const offsetInput = prompt('Due date offset in days (optional, e.g., 3 for 3 days from creation):', '');
+    const dueOffsetDays = offsetInput ? parseInt(offsetInput, 10) : null;
+
+    setSavingTemplate(true);
+    try {
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName,
+          category: category || null,
+          priority: todo.priority,
+          recurrence_pattern: todo.recurrence_pattern,
+          reminder_minutes: todo.reminder_minutes,
+          due_date_offset_days: dueOffsetDays,
+          subtasks: todo.subtasks.map((st, idx) => ({ 
+            title: st.title, 
+            position: idx 
+          })),
+          tag_ids: todo.tags?.map(t => t.id) || [],
+        }),
+      });
+
+      if (response.ok) {
+        alert(`Template "${templateName}" created!`);
+        fetchTemplates(); // Refresh templates
+      } else {
+        throw new Error('Failed to create template');
+      }
+    } catch (err) {
+      setError('Failed to create template. Please try again.');
+      console.error(err);
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleUseTemplate = async (templateId: number) => {
+    try {
+      const response = await fetch(`/api/templates/${templateId}/use`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adjust_due_date: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create todo from template');
+      }
+
+      const data = await response.json();
+      alert(data.message);
+      fetchTodos(); // Refresh todos
+      setShowTemplateModal(false);
+    } catch (err) {
+      setError('Failed to use template. Please try again.');
+      console.error(err);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: number) => {
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
+
+    const confirmed = window.confirm(`Delete template "${template.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/templates/${templateId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete template');
+      }
+
+      setTemplates(prev => prev.filter(t => t.id !== templateId));
+    } catch (err) {
+      setError('Failed to delete template. Please try again.');
+      console.error(err);
+    }
+  };
+
+  const startTemplateEdit = (template: any) => {
+    setEditingTemplateId(template.id);
+    setTemplateForm({
+      name: template.name,
+      category: template.category || '',
+      due_date_offset_days: template.due_date_offset_days || 0,
+    });
+  };
+
+  const cancelTemplateEdit = () => {
+    setEditingTemplateId(null);
+    setTemplateForm({
+      name: '',
+      category: '',
+      due_date_offset_days: 0,
+    });
+  };
+
+  const saveTemplateEdit = async () => {
+    if (!editingTemplateId) return;
+
+    try {
+      const response = await fetch(`/api/templates/${editingTemplateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateForm.name,
+          category: templateForm.category || null,
+          due_date_offset_days: templateForm.due_date_offset_days || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update template');
+      }
+
+      const data = await response.json();
+      setTemplates(prev => prev.map(t => t.id === editingTemplateId ? data.template : t));
+      cancelTemplateEdit();
+    } catch (err) {
+      setError('Failed to update template. Please try again.');
+      console.error(err);
+    }
+  };
+
+  // Fetch templates when modal opens or category filter changes
+  useEffect(() => {
+    if (showTemplateModal) {
+      fetchTemplates();
+    }
+  }, [showTemplateModal, selectedCategoryFilter]);
+
+  const uniqueCategories = ['all', ...new Set(templates.map(t => t.category).filter(Boolean))];
+
+  // Filter handler functions
+  const handleClearAllFilters = () => {
+    setSearchInput('');
+    setFilters(getDefaultFilters());
+  };
+
+  const handleToggleAdvancedSearch = () => {
+    setFilters(prev => ({ ...prev, advancedSearch: !prev.advancedSearch }));
+  };
+
+  const handleStatusChange = (status: FilterStatus) => {
+    setFilters(prev => ({ ...prev, status }));
+  };
+
+  const handlePrioritiesChange = (priorities: Priority[]) => {
+    setFilters(prev => ({ ...prev, priorities }));
+  };
+
+  const handleTagIdsChange = (tagIds: number[]) => {
+    setFilters(prev => ({ ...prev, tagIds }));
+  };
+
+  const handleDueDateRangeChange = (dueDateRange: FilterDueDateRange) => {
+    setFilters(prev => ({ ...prev, dueDateRange }));
+  };
+
+  const togglePriority = (priority: Priority) => {
+    if (filters.priorities.includes(priority)) {
+      handlePrioritiesChange(filters.priorities.filter(p => p !== priority));
+    } else {
+      handlePrioritiesChange([...filters.priorities, priority]);
+    }
+  };
+
+  const toggleTagFilter = (tagId: number) => {
+    if (filters.tagIds.includes(tagId)) {
+      handleTagIdsChange(filters.tagIds.filter(id => id !== tagId));
+    } else {
+      handleTagIdsChange([...filters.tagIds, tagId]);
+    }
+  };
+
+  const removeSearchFilter = () => {
+    setSearchInput('');
+  };
+
+  const removeStatusFilter = () => {
+    handleStatusChange('all');
+  };
+
+  const removePriorityFilter = (priority: Priority) => {
+    handlePrioritiesChange(filters.priorities.filter(p => p !== priority));
+  };
+
+  const removeTagFilter = (tagId: number) => {
+    handleTagIdsChange(filters.tagIds.filter(id => id !== tagId));
+  };
+
+  const removeDueDateRangeFilter = () => {
+    handleDueDateRangeChange('all');
+  };
+
   // Sort and filter todos
-  const sortedAndFilteredTodos = todos
-    .filter(todo => {
-      // Filter by search query (search in title and subtasks)
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const titleMatch = todo.title.toLowerCase().includes(query);
-        const subtaskMatch = todo.subtasks.some(s => 
-          s.title.toLowerCase().includes(query)
-        );
-        if (!titleMatch && !subtaskMatch) {
-          return false;
-        }
-      }
-      
-      // Filter by priority
-      if (filterPriority !== 'all' && todo.priority !== filterPriority) {
-        return false;
-      }
-      
-      // Filter by tag
-      if (filterTagId !== null) {
-        if (!todo.tags || !todo.tags.some(t => t.id === filterTagId)) {
-          return false;
-        }
-      }
-      
-      return true;
-    })
+  // Sort and filter todos using new filter system
+  const sortedAndFilteredTodos = filteredTodos
     .sort((a, b) => {
       // Sort by completion status first (incomplete first)
       if (a.completed !== b.completed) {
@@ -622,7 +853,10 @@ export default function TodosPage() {
             <button className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-500 transition-colors">
               Calendar
             </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors">
+            <button 
+              onClick={() => setShowTemplateModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
+            >
               📋 Templates
             </button>
             <button className="px-3 py-2 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-400 transition-colors">
@@ -776,101 +1010,85 @@ export default function TodosPage() {
           </form>
         </div>
 
-        {/* Search Section */}
-        <div className="bg-[#1e293b] rounded-lg p-5 border border-slate-700/50">
-          <div className="relative mb-4">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search todos and subtasks..."
-              className="w-full pl-10 pr-4 py-2.5 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value as Priority | 'all')}
-              className="px-4 py-2 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            >
-              <option value="all">All Priorities</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            {tags.length > 0 && (
-              <select
-                value={filterTagId ?? ''}
-                onChange={(e) => setFilterTagId(e.target.value ? parseInt(e.target.value) : null)}
-                className="px-4 py-2 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              >
-                <option value="">All Tags</option>
-                {tags.map(tag => (
-                  <option key={tag.id} value={tag.id}>{tag.name}</option>
-                ))}
-              </select>
-            )}
-            <button 
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
-            >
-              <span className={`transform transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}>
-                ▼
-              </span>
-              <span>Advanced</span>
-            </button>
-          </div>
-          
-          {/* Advanced Filters */}
-          {showAdvanced && (
-            <div className="mt-4 pt-4 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-200">
-              <h3 className="text-sm font-medium text-white mb-3">Advanced Filters</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1.5">Completion Status</label>
-                  <select className="w-full px-3 py-2 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50">
-                    <option>All Todos</option>
-                    <option>Completed</option>
-                    <option>Incomplete</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Due Date From</label>
-                    <input
-                      type="date"
-                      className="w-full px-3 py-2 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                      placeholder="dd/mm/yyyy"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1.5">Due Date To</label>
-                    <input
-                      type="date"
-                      className="w-full px-3 py-2 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                      placeholder="dd/mm/yyyy"
-                    />
-                  </div>
-                </div>
-              </div>
+        {/* Search & Filter Section */}
+        <div className="bg-[#1e293b] rounded-lg p-5 border border-slate-700/50 space-y-4">
+          {/* Search Bar */}
+          <SearchBar
+            value={searchInput}
+            onChange={setSearchInput}
+            advancedSearch={filters.advancedSearch}
+            onToggleAdvanced={handleToggleAdvancedSearch}
+          />
+
+          {/* Filter Panel Toggle */}
+          <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
+          >
+            <span className={`transform transition-transform duration-200 ${showFilterPanel ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+            <span>Filters {activeFilterCount > 0 && `(${activeFilterCount})`}</span>
+          </button>
+
+          {/* Filter Panel */}
+          {showFilterPanel && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+              <FilterPanel
+                status={filters.status}
+                onStatusChange={handleStatusChange}
+                selectedPriorities={filters.priorities}
+                onPrioritiesChange={handlePrioritiesChange}
+                selectedTagIds={filters.tagIds}
+                onTagIdsChange={handleTagIdsChange}
+                dueDateRange={filters.dueDateRange}
+                onDueDateRangeChange={handleDueDateRangeChange}
+                availableTags={tags}
+                onClearAll={handleClearAllFilters}
+                togglePriority={togglePriority}
+                toggleTag={toggleTagFilter}
+              />
             </div>
           )}
+
+          {/* Active Filter Badges */}
+          <ActiveFilterBadges
+            status={filters.status}
+            onRemoveStatus={removeStatusFilter}
+            selectedPriorities={filters.priorities}
+            onRemovePriority={removePriorityFilter}
+            selectedTags={tags.filter(t => filters.tagIds.includes(t.id))}
+            onRemoveTag={removeTagFilter}
+            dueDateRange={filters.dueDateRange}
+            onRemoveDueDateRange={removeDueDateRangeFilter}
+            searchTerm={filters.searchTerm}
+            onRemoveSearch={removeSearchFilter}
+          />
+
+          {/* Filter Stats */}
+          <FilterStats
+            totalTodos={todos.length}
+            filteredTodos={filteredTodos.length}
+          />
         </div>
 
         {/* Todos List */}
         {sortedAndFilteredTodos.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 space-y-4">
             <p className="text-slate-400 text-base">
               {todos.length === 0 
                 ? "No todos yet. Add one above!" 
                 : "No todos match your filters."
               }
             </p>
+            {hasActiveFilters && todos.length > 0 && (
+              <button
+                onClick={handleClearAllFilters}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+              >
+                Clear All Filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -1050,6 +1268,15 @@ export default function TodosPage() {
                         className="px-4 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-500 transition-colors"
                       >
                         Delete
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveAsTemplate(todo)}
+                        disabled={savingTemplate}
+                        className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Save as template"
+                      >
+                        💾 Template
                       </button>
                     </div>
                   </div>
@@ -1275,6 +1502,206 @@ export default function TodosPage() {
             <div className="p-6 border-t border-slate-700/50 sticky bottom-0 bg-[#1e293b]">
               <button
                 onClick={() => setShowTagModal(false)}
+                className="w-full px-4 py-2.5 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Management Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0f172a] rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-slate-700/50">
+            <div className="p-6 border-b border-slate-700/50 sticky top-0 bg-[#0f172a] z-10">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">Templates</h2>
+                <button
+                  onClick={() => setShowTemplateModal(false)}
+                  className="text-slate-400 hover:text-white transition-colors text-2xl leading-none"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Category Filter */}
+              <div className="mb-6">
+                <div className="flex flex-wrap gap-2">
+                  {uniqueCategories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategoryFilter(cat as string)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedCategoryFilter === cat
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      {cat === 'all' ? 'All' : cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Templates Grid */}
+              {templates.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-slate-400">
+                    No templates yet. Save a todo as a template to get started!
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {templates.map(template => (
+                    <div
+                      key={template.id}
+                      className="bg-[#1e293b] rounded-lg p-4 border border-slate-700/50 hover:border-slate-600/70 transition-all"
+                    >
+                      {editingTemplateId === template.id ? (
+                        // Edit Mode
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm text-slate-400 mb-1.5">Name</label>
+                            <input
+                              type="text"
+                              value={templateForm.name}
+                              onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                              className="w-full px-4 py-2.5 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                              maxLength={200}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-slate-400 mb-1.5">Category</label>
+                            <input
+                              type="text"
+                              value={templateForm.category}
+                              onChange={(e) => setTemplateForm({ ...templateForm, category: e.target.value })}
+                              className="w-full px-4 py-2.5 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                              maxLength={50}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-slate-400 mb-1.5">Due Date Offset (days)</label>
+                            <input
+                              type="number"
+                              value={templateForm.due_date_offset_days}
+                              onChange={(e) => setTemplateForm({ ...templateForm, due_date_offset_days: parseInt(e.target.value) || 0 })}
+                              className="w-full px-4 py-2.5 bg-[#0f172a] border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                              min="0"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={saveTemplateEdit}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-500 transition-colors"
+                            >
+                              Update
+                            </button>
+                            <button
+                              onClick={cancelTemplateEdit}
+                              className="px-4 py-2 bg-slate-600 text-white rounded-lg text-sm hover:bg-slate-500 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        // View Mode
+                        <>
+                          {template.category && (
+                            <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-purple-500/20 text-purple-400 mb-2">
+                              {template.category}
+                            </span>
+                          )}
+                          <h3 className="text-lg font-semibold text-white mb-2">{template.name}</h3>
+                          
+                          {/* Priority Badge */}
+                          <span className={`inline-block px-2 py-1 text-xs font-semibold rounded mb-2 ${
+                            template.priority === 'high' ? 'bg-red-500/20 text-red-400' :
+                            template.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-green-500/20 text-green-400'
+                          }`}>
+                            {template.priority.toUpperCase()}
+                          </span>
+
+                          {/* Metadata */}
+                          <div className="space-y-1 text-xs text-slate-400 mb-3">
+                            {template.recurrence_pattern && (
+                              <div>🔄 Recurs: {template.recurrence_pattern}</div>
+                            )}
+                            {template.due_date_offset_days !== null && (
+                              <div>📅 Due: {template.due_date_offset_days} days after creation</div>
+                            )}
+                            {template.reminder_minutes && (
+                              <div>⏰ Reminder: {template.reminder_minutes} min before due</div>
+                            )}
+                            {(() => {
+                              try {
+                                const subtasks = template.subtasks_json ? JSON.parse(template.subtasks_json) : [];
+                                if (subtasks.length > 0) {
+                                  return <div>✓ {subtasks.length} subtasks</div>;
+                                }
+                              } catch (e) {
+                                return null;
+                              }
+                              return null;
+                            })()}
+                          </div>
+
+                          {/* Tags */}
+                          {template.tags && template.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {template.tags.map((tag: any) => (
+                                <span
+                                  key={tag.id}
+                                  className="px-2 py-0.5 text-xs rounded-full text-white"
+                                  style={{ backgroundColor: tag.color }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => handleUseTemplate(template.id)}
+                              className="w-full px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors"
+                            >
+                              Use Template
+                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => startTemplateEdit(template)}
+                                className="flex-1 px-3 py-1.5 border border-slate-600 text-slate-300 text-sm rounded-lg hover:bg-slate-700 transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTemplate(template.id)}
+                                className="flex-1 px-3 py-1.5 border border-red-500/50 text-red-400 text-sm rounded-lg hover:bg-red-500/10 transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-slate-700/50 sticky bottom-0 bg-[#0f172a]">
+              <button
+                onClick={() => setShowTemplateModal(false)}
                 className="w-full px-4 py-2.5 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-600 transition-colors"
               >
                 Close

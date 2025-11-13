@@ -48,6 +48,25 @@ export interface NotificationPayload {
   due_date: string;
 }
 
+// Search & Filtering types
+export type FilterStatus = 'all' | 'completed' | 'incomplete';
+export type FilterDueDateRange = 'all' | 'today' | 'this-week' | 'this-month' | 'overdue' | 'no-due-date';
+
+export interface SearchFilters {
+  searchTerm: string;
+  advancedSearch: boolean; // Include tags in search
+  status: FilterStatus;
+  priorities: Priority[]; // Multi-select
+  tagIds: number[]; // Multi-select
+  dueDateRange: FilterDueDateRange;
+}
+
+export interface FilterStats {
+  totalTodos: number;
+  filteredTodos: number;
+  activeFilterCount: number;
+}
+
 // Priority configuration
 export const PRIORITY_CONFIG = {
   high: {
