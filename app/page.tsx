@@ -54,9 +54,9 @@ export default function TodosPage() {
 
   // Sorting function for priority
   const sortByPriority = (a: Todo, b: Todo) => {
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    const aPriority = priorityOrder[a.priority];
-    const bPriority = priorityOrder[b.priority];
+    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2, null: 3 };
+    const aPriority = priorityOrder[a.priority || 'null'];
+    const bPriority = priorityOrder[b.priority || 'null'];
     
     if (aPriority !== bPriority) {
       return aPriority - bPriority;
@@ -79,9 +79,12 @@ export default function TodosPage() {
       id: Date.now(), // Temporary ID
       user_id: 0,
       title: newTitle.trim(),
-      completed: false,
+      completed_at: null,
       priority: newPriority,
       due_date: newDueDate || null,
+      recurrence_pattern: null,
+      reminder_minutes: null,
+      last_notification_sent: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -118,27 +121,28 @@ export default function TodosPage() {
   };
 
   const handleToggleComplete = async (todo: Todo) => {
-    const newCompleted = !todo.completed;
+    const newCompletedAt = todo.completed_at ? null : new Date().toISOString();
 
     // Optimistic update
     setTodos(todos => todos.map(t =>
-      t.id === todo.id ? { ...t, completed: newCompleted } : t
+      t.id === todo.id ? { ...t, completed_at: newCompletedAt } : t
     ));
 
     try {
       const response = await fetch(`/api/todos/${todo.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed: newCompleted }),
+        body: JSON.stringify({ completed_at: newCompletedAt }),
       });
 
       if (!response.ok) throw new Error('Failed to update todo');
       const updatedTodo = await response.json();
       setTodos(todos => todos.map(t => t.id === todo.id ? updatedTodo : t));
+      fetchPriorityCounts(); // Refresh counts when completing/uncompleting
     } catch (err) {
       // Rollback optimistic update
       setTodos(todos => todos.map(t =>
-        t.id === todo.id ? { ...t, completed: !newCompleted } : t
+        t.id === todo.id ? { ...t, completed_at: todo.completed_at } : t
       ));
       setError('Failed to update todo');
       console.error(err);
@@ -149,7 +153,7 @@ export default function TodosPage() {
     setEditingId(todo.id);
     setEditTitle(todo.title);
     setEditDueDate(todo.due_date || '');
-    setEditPriority(todo.priority);
+    setEditPriority(todo.priority || 'medium');
   };
 
   const handleSaveEdit = async (todo: Todo) => {
@@ -203,6 +207,7 @@ export default function TodosPage() {
       });
 
       if (!response.ok) throw new Error('Failed to delete todo');
+      fetchPriorityCounts(); // Refresh counts after deleting
     } catch (err) {
       // Rollback optimistic update
       setTodos(originalTodos);
@@ -273,15 +278,20 @@ export default function TodosPage() {
           filteredTodos.map(todo => (
             <div
               key={todo.id}
-              className="flex items-center gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition"
+              className="flex items-start gap-4 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition"
             >
-              {/* Checkbox */}
-              <input
-                type="checkbox"
-                checked={todo.completed}
-                onChange={() => handleToggleComplete(todo)}
-                className="w-5 h-5 cursor-pointer"
-              />
+              {/* Checkbox - Simplified */}
+              <label className="flex items-center pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!todo.completed_at}
+                  onChange={() => {
+                    console.log('Checkbox clicked for todo:', todo.id);
+                    handleToggleComplete(todo);
+                  }}
+                  className="w-6 h-6 cursor-pointer accent-blue-500"
+                />
+              </label>
 
               {/* Todo Content */}
               {editingId === todo.id ? (
@@ -320,15 +330,19 @@ export default function TodosPage() {
               ) : (
                 <>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      {/* Priority Badge */}
-                      <PriorityBadge priority={todo.priority} />
-                      <p className={`${todo.completed ? 'line-through text-gray-400' : ''}`}>
-                        {todo.title}
-                      </p>
-                    </div>
+                    {/* Priority Badge - Display above title */}
+                    {todo.priority && (
+                      <div className="mb-1">
+                        <PriorityBadge priority={todo.priority} />
+                      </div>
+                    )}
+                    {/* Title */}
+                    <p className={`text-base ${todo.completed_at ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                      {todo.title}
+                    </p>
+                    {/* Due Date */}
                     {todo.due_date && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 mt-1">
                         Due: {formatSingaporeDate(todo.due_date, 'MMM dd, yyyy')}
                       </p>
                     )}

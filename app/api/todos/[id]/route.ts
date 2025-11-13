@@ -49,7 +49,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, completed, priority, due_date } = body;
+    const { title, completed_at, priority, due_date, recurrence_pattern, reminder_minutes } = body;
 
     // Validate title if provided
     if (title !== undefined) {
@@ -65,13 +65,13 @@ export async function PUT(
       }
     }
 
-    // Validate completed if provided
-    if (completed !== undefined && typeof completed !== 'boolean') {
-      return NextResponse.json({ error: 'Completed must be a boolean' }, { status: 400 });
+    // Validate completed_at if provided
+    if (completed_at !== undefined && completed_at !== null && typeof completed_at !== 'string') {
+      return NextResponse.json({ error: 'Completed_at must be a string or null' }, { status: 400 });
     }
 
     // Validate priority if provided
-    if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
+    if (priority !== undefined && priority !== null && !['high', 'medium', 'low'].includes(priority)) {
       return NextResponse.json({ 
         error: 'Priority must be one of: high, medium, low' 
       }, { status: 400 });
@@ -87,9 +87,11 @@ export async function PUT(
 
     const updatedTodo = todoDB.update(session.userId, todoId, {
       title,
-      completed,
+      completed_at,
       priority,
       due_date,
+      recurrence_pattern,
+      reminder_minutes,
     });
 
     if (!updatedTodo) {

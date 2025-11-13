@@ -4,6 +4,9 @@
 // Priority enum
 export type Priority = 'high' | 'medium' | 'low';
 
+// Recurrence pattern enum
+export type RecurrencePattern = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
 // Priority display configuration
 export const PRIORITY_CONFIG = {
   high: {
@@ -51,22 +54,29 @@ export interface Todo {
   id: number;
   user_id: number;
   title: string;
-  completed: boolean;
-  priority: Priority;
+  completed_at: string | null;
+  priority: Priority | null;
   due_date: string | null;
+  recurrence_pattern: RecurrencePattern | null;
+  reminder_minutes: number | null;
+  last_notification_sent: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateTodoInput {
   title: string;
-  priority?: Priority;
+  priority?: Priority | null;
   due_date?: string | null;
+  recurrence_pattern?: RecurrencePattern | null;
+  reminder_minutes?: number | null;
 }
 
 export interface UpdateTodoInput {
   title?: string;
-  completed?: boolean;
-  priority?: Priority;
+  completed_at?: string | null;
+  priority?: Priority | null;
   due_date?: string | null;
+  recurrence_pattern?: RecurrencePattern | null;
+  reminder_minutes?: number | null;
 }
